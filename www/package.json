@@ -1,0 +1,53 @@
+{
+  "name": "create-wasm-app",
+  "version": "0.1.0",
+  "description": "create an app to consume rust-generated wasm packages",
+  "main": "index.js",
+  "bin": {
+    "create-wasm-app": ".bin/create-wasm-app.js"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "build": "webpack --config webpack.config.js",
+    "build:prod": "NODE_ENV=production npm run wasm:build && NODE_ENV=production webpack --config webpack.config.js",
+    "start": "webpack serve --config webpack.config.js",
+    "dev": "npm run wasm:build && npm run build && npm start",
+    "wasm:build": "cd .. && wasm-pack build",
+    "wasm:watch": "cd .. && cargo watch -i .gitignore -i 'pkg/*' -s 'wasm-pack build'",
+    "clean": "rm -rf dist/* && rm -rf ../pkg/*",
+    "watch": "concurrently \"npm run wasm:watch\" \"webpack serve --config webpack.config.js\"",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rustwasm/create-wasm-app.git"
+  },
+  "keywords": [
+    "webassembly",
+    "wasm",
+    "rust",
+    "webpack"
+  ],
+  "author": "Ashley Williams <ashley666ashley@gmail.com>",
+  "license": "(MIT OR Apache-2.0)",
+  "bugs": {
+    "url": "https://github.com/rustwasm/create-wasm-app/issues"
+  },
+  "homepage": "https://maskmytext.com",
+  "dependencies": {
+    "mask-my-text": "file:../pkg"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@types/node": "^22.14.1",
+    "concurrently": "^8.2.2",
+    "copy-webpack-plugin": "^11.0.0",
+    "hello-wasm-pack": "^0.1.0",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.6",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.2"
+  }
+}

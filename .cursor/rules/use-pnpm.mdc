@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When generating or suggesting terminal commands that involve package management, always use pnpm instead of npm.
+
+- Use `pnpm install` instead of `npm install`.
+- Use `pnpm update` instead of `npm update`.
+- Use `pnpm prune` instead of `npm prune`.
+- Use `pnpm run <script>` instead of `npm run <script>`. 
+- use the folder `www` as the base directory before running any `pnpm` commands

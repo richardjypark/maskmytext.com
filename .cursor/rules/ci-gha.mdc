@@ -1,0 +1,13 @@
+---
+description: 
+globs: .github/**
+alwaysApply: false
+---
+# Rust WebAssembly CI/CD Workflow
+
+## Core Principles
+- Use `Swatinem/rust-cache@v2` for efficient Rust dependency caching
+- Implement composite actions for reusable code setup
+- Share build artifacts between jobs to avoid duplicate work
+- Optimize cache configuration for maximum build speed
+- Refer to git branch: `master`
