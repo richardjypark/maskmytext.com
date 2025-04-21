@@ -449,6 +449,83 @@
       [data-theme="dark"] .mode-toggle:hover:not(.active) {
         opacity: 0.8;
       }
+
+      /* Toast Notification */
+      .toast-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        max-width: 350px;
+        background-color: var(--secondary-bg);
+        color: var(--text-color);
+        border-left: 4px solid var(--primary-color);
+        padding: 16px;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        z-index: 1000;
+        transform: translateY(150%);
+        transition: transform 0.3s ease-out;
+      }
+
+      .toast-notification.show {
+        transform: translateY(0);
+      }
+
+      .toast-content {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .toast-icon {
+        margin-right: 12px;
+        font-size: 24px;
+      }
+
+      .toast-message {
+        flex: 1;
+      }
+
+      .toast-title {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+
+      .toast-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .toast-button {
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+      }
+
+      .toast-primary {
+        background-color: var(--primary-color);
+        color: white;
+      }
+
+      .toast-primary:hover {
+        background-color: var(--button-hover);
+      }
+
+      .toast-secondary {
+        background-color: transparent;
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+      }
+
+      .toast-secondary:hover {
+        background-color: var(--border-color);
+      }
     </style>
   </head>
   <body>
@@ -552,18 +629,59 @@
         </div>
       </main>
     </div>
+    <div class="toast-notification" id="toast-notification">
+      <div class="toast-content">
+        <div class="toast-icon">✅</div>
+        <div class="toast-message">
+          <div class="toast-title">Success!</div>
+          <p>The text has been copied to your clipboard.</p>
+        </div>
+      </div>
+      <div class="toast-actions">
+        <button class="toast-button toast-primary" id="close-toast">
+          Close
+        </button>
+      </div>
+    </div>
+    <div class="toast-notification" id="update-toast">
+      <div class="toast-content">
+        <div class="toast-icon">🔄</div>
+        <div class="toast-message">
+          <div class="toast-title">Update Available</div>
+          <p>A new version of Mask My Text is available.</p>
+        </div>
+      </div>
+      <div class="toast-actions">
+        <button class="toast-button toast-secondary" id="later-update">
+          Later
+        </button>
+        <button class="toast-button toast-primary" id="update-now">
+          Update Now
+        </button>
+      </div>
+    </div>
     <script src="./bootstrap.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           // Determine the correct service worker path
           const hostname = window.location.hostname;
-          const swPath =
-            hostname === "maskmytext.com" || hostname === "www.maskmytext.com"
-              ? "/service-worker.js"
-              : hostname.includes("github.io")
-              ? "/maskmytext.com/service-worker.js"
-              : "./service-worker.js";
+          const pathname = window.location.pathname;
+          let swPath = "./service-worker.js"; // Default for local development
+
+          if (
+            hostname === "maskmytext.com" ||
+            hostname === "www.maskmytext.com"
+          ) {
+            swPath = "/service-worker.js"; // Production
+          } else if (
+            hostname.includes("github.io") &&
+            pathname.includes("/maskmytext.com/")
+          ) {
+            swPath = "/maskmytext.com/service-worker.js"; // GitHub Pages
+          }
+
+          console.log("Registering service worker with path:", swPath);
 
           // Register service worker with update handling
           navigator.serviceWorker
@@ -584,10 +702,24 @@
                     console.log(
                       "New service worker installed and waiting to activate"
                     );
-                    // Prompt user to refresh or automatically refresh
-                    if (confirm("New version available! Reload to update?")) {
-                      window.location.reload();
-                    }
+                    // Show the update toast instead of confirm dialog
+                    const updateToast = document.getElementById("update-toast");
+                    updateToast.classList.add("show");
+
+                    // Update now button handler
+                    document
+                      .getElementById("update-now")
+                      .addEventListener("click", () => {
+                        updateToast.classList.remove("show");
+                        window.location.reload();
+                      });
+
+                    // Later button handler
+                    document
+                      .getElementById("later-update")
+                      .addEventListener("click", () => {
+                        updateToast.classList.remove("show");
+                      });
                   }
                 });
               });
@@ -617,6 +749,10 @@
       const settingsBtn = document.getElementById("settings-btn");
       const settingsPopup = document.getElementById("settings-popup");
       const clearDataBtn = document.getElementById("clear-data-btn");
+      const toastNotification = document.getElementById("toast-notification");
+      const closeToastBtn = document.getElementById("close-toast");
+      const laterUpdateBtn = document.getElementById("later-update");
+      const updateNowBtn = document.getElementById("update-now");
 
       // Store mask words
       let maskWords = new Set();
@@ -869,6 +1005,21 @@
         setTimeout(() => {
           clearDataBtn.textContent = originalText;
         }, 2000);
+      });
+
+      // Toast notification functionality
+      closeToastBtn.addEventListener("click", () => {
+        toastNotification.classList.remove("show");
+      });
+
+      // Update toast functionality
+      laterUpdateBtn.addEventListener("click", () => {
+        document.getElementById("update-toast").classList.remove("show");
+      });
+
+      updateNowBtn.addEventListener("click", () => {
+        document.getElementById("update-toast").classList.remove("show");
+        window.location.reload();
       });
     </script>
   </body>

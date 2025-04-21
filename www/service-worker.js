@@ -7,13 +7,13 @@ const BASE_PATH = (() => {
     return ""; // Root path for production domain
   }
 
-  // For GitHub Pages or other hosting with path prefix, extract just one instance of the path
-  const match = pathname.match(/\/maskmytext\.com(?!\/.+\/maskmytext\.com)/);
-  if (match) {
+  // For GitHub Pages or other hosting with path prefix, extract the path more robustly
+  if (pathname.includes("/maskmytext.com/")) {
     return "/maskmytext.com";
   }
 
-  return ""; // Default to empty path
+  // For local development server or other scenarios
+  return "";
 })();
 const ASSETS_TO_CACHE = [
   `${BASE_PATH}/`,
