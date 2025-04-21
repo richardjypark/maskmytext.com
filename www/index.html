@@ -388,6 +388,21 @@
           width: 90%;
           max-width: 300px;
         }
+
+        /* Adjust toggle buttons on mobile for proper sizing */
+        .mode-toggle-container {
+          gap: 0.75rem;
+          padding: 0.25rem;
+        }
+
+        .mode-toggle {
+          /* Allow buttons to flex and remove fixed min width */
+          min-width: auto;
+          flex: 1;
+          padding: 0.75rem 1rem;
+          font-size: 1rem;
+          height: auto;
+        }
       }
 
       .mask-words-section {
@@ -616,6 +631,21 @@
 
       .toast-secondary:hover {
         background-color: var(--border-color);
+      }
+
+      /* Mobile toggle overrides placed after default styles for higher specificity */
+      @media (max-width: 768px) {
+        .mode-toggle-container {
+          gap: 0.75rem;
+          padding: 0.25rem;
+        }
+        .mode-toggle {
+          min-width: 0 !important;
+          flex: 1 1 0;
+          padding: 0.75rem 1rem;
+          font-size: 1rem;
+          height: auto;
+        }
       }
     </style>
   </head>
