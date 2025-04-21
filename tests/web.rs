@@ -8,7 +8,7 @@ use js_sys::Set;
 use wasm_bindgen::JsValue;
 
 // Import functions from our crate
-use mask_my_text::{greet, mask_text, mask_text_with_fields};
+use mask_my_text::{greet, mask_text, mask_text_with_fields, decode_obfuscated_text};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -114,4 +114,85 @@ fn test_mask_text_with_fields_multiple_occurrences() {
     
     let result = mask_text_with_fields(input.to_string(), &mask_words);
     assert_eq!(result, expected, "Same words should use same field reference");
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_basic() {
+    // Create a test Set with words to decode
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("John"));
+    mask_words.add(&JsValue::from_str("john@example.com"));
+    
+    let input = "My FIELD_1 is FIELD_1 and my FIELD_2 is FIELD_2.";
+    let expected = "My John is John and my john@example.com is john@example.com.";
+    
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "FIELD_N should be replaced with corresponding words");
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_empty() {
+    // Test with empty text
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("test"));
+    
+    let input = "";
+    let expected = "";
+    
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "Empty text should return empty result");
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_no_fields() {
+    // Test with text that has no fields to replace
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("secret"));
+    mask_words.add(&JsValue::from_str("password"));
+    
+    let input = "This text has no fields to replace.";
+    let expected = "This text has no fields to replace.";
+    
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "Text without fields should remain unchanged");
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_empty_words() {
+    // Test with empty words which should be skipped
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str(""));
+    mask_words.add(&JsValue::from_str("valid"));
+    
+    let input = "This FIELD_1 should be replaced.";
+    let expected = "This valid should be replaced.";
+    
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "Empty words should be skipped during field mapping");
+}
+
+#[wasm_bindgen_test]
+fn test_mask_and_decode_roundtrip() {
+    // Test a full roundtrip: mask with fields and then decode
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("username"));
+    mask_words.add(&JsValue::from_str("password"));
+    
+    let original = "My username is admin and my password is 12345.";
+    
+    // First mask the text
+    let masked = mask_text_with_fields(original.to_string(), &mask_words);
+    assert_eq!(
+        masked,
+        "My FIELD_1 is admin and my FIELD_2 is 12345.",
+        "Text should be properly masked with fields"
+    );
+    
+    // Then decode it back
+    let decoded = decode_obfuscated_text(masked, &mask_words);
+    assert_eq!(
+        decoded,
+        original,
+        "Decoded text should match the original text"
+    );
 }

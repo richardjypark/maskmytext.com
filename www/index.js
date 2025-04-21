@@ -11,8 +11,13 @@ export function maskText(text, maskWords) {
   }
 }
 
+export function decodeObfuscatedText(text, maskWords) {
+  return wasm.decode_obfuscated_text(text, new Set(maskWords));
+}
+
 if (typeof window !== "undefined") {
   window.maskText = maskText;
+  window.decodeObfuscatedText = decodeObfuscatedText;
 
   // Listen for messages from the service worker
   navigator.serviceWorker.addEventListener("message", (event) => {
