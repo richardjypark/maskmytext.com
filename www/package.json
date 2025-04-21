@@ -9,13 +9,14 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "webpack --config webpack.config.js",
-    "build:prod": "NODE_ENV=production npm run wasm:build && NODE_ENV=production webpack --config webpack.config.js",
+    "build:prod": "NODE_ENV=production pnpm run wasm:build && NODE_ENV=production webpack --config webpack.config.js",
     "start": "webpack serve --config webpack.config.js",
-    "dev": "npm run wasm:build && npm run build && npm start",
+    "preview": "pnpm dlx http-server dist -p 8080 --cors -c-1",
+    "dev": "pnpm run wasm:build && pnpm run build && pnpm start",
     "wasm:build": "cd .. && wasm-pack build",
     "wasm:watch": "cd .. && cargo watch -i .gitignore -i 'pkg/*' -s 'wasm-pack build'",
     "clean": "rm -rf dist/* && rm -rf ../pkg/*",
-    "watch": "concurrently \"npm run wasm:watch\" \"webpack serve --config webpack.config.js\"",
+    "watch": "concurrently \"pnpm run wasm:watch\" \"webpack serve --config webpack.config.js\"",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:debug": "playwright test --debug"

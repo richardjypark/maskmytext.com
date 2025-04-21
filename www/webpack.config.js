@@ -6,8 +6,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "bootstrap.js",
-    publicPath:
-      process.env.NODE_ENV === "production" ? "/maskmytext.com/" : "/",
+    publicPath: "./",
   },
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
   plugins: [

@@ -1,7 +1,10 @@
 const CACHE_NAME = "mask-my-text-v1";
-const BASE_PATH = self.location.pathname.includes("/maskmytext.com/")
-  ? "/maskmytext.com"
-  : "";
+const BASE_PATH =
+  location.hostname === "maskmytext.com"
+    ? ""
+    : self.location.pathname.includes("/maskmytext.com/")
+    ? "/maskmytext.com"
+    : "";
 const ASSETS_TO_CACHE = [
   `${BASE_PATH}/`,
   `${BASE_PATH}/index.html`,

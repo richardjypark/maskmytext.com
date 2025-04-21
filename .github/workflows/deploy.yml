@@ -49,18 +49,23 @@ jobs:
         run: pnpm install
 
       # ─── Build & Test frontend ──────────────────────────────────────────────────
-      - name: Setup Playwright
-        run: |
-          cd www
-          pnpm exec playwright install chromium --with-deps
-
       - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v3
         with:
           key: playwright-${{ runner.os }}-${{ hashFiles('www/pnpm-lock.yaml') }}
           path: ~/.cache/ms-playwright
           restore-keys: |
             playwright-${{ runner.os }}-
+
+      - name: Setup Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: |
+          cd www
+          pnpm exec playwright install chromium --with-deps
+
+      - name: Install http-server
+        run: pnpm add -g http-server
 
       - name: Run tests
         working-directory: ./www
@@ -77,6 +82,10 @@ jobs:
       - name: Build production bundle
         working-directory: ./www
         run: pnpm build:prod
+
+      # ─── Ensure CNAME file is included ────────────────────────────────────────────
+      - name: Copy CNAME file to dist
+        run: cp -f www/CNAME www/dist/ || true
 
       # ─── GitHub Pages deployment prep ───────────────────────────────────────────
       - name: Configure GitHub Pages

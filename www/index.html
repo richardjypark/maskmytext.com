@@ -9,17 +9,14 @@
       name="description"
       content="Text masking application with WebAssembly support"
     />
-    <link rel="manifest" href="/maskmytext.com/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     <link
       rel="icon"
       type="image/png"
       sizes="192x192"
-      href="/maskmytext.com/icons/icon-192x192.png"
+      href="./icons/icon-192x192.png"
     />
-    <link
-      rel="apple-touch-icon"
-      href="/maskmytext.com/icons/icon-192x192.png"
-    />
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
     <style>
       :root {
         --primary-color: #c04e01;
@@ -551,9 +548,12 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          // Determine if we're on GitHub Pages and get the correct path
+          // Use appropriate service worker path based on hostname
+          const isCustomDomain = window.location.hostname === "maskmytext.com";
           const isGithubPages = window.location.hostname.includes("github.io");
-          const swPath = isGithubPages
+          const swPath = isCustomDomain
+            ? "/service-worker.js"
+            : isGithubPages
             ? "/maskmytext.com/service-worker.js"
             : "/service-worker.js";
 

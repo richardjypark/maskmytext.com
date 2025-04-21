@@ -8,9 +8,11 @@ module.exports = defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
+  timeout: 60000,
   use: {
     baseURL: "http://localhost:8080",
     trace: "on-first-retry",
+    actionTimeout: 30000,
   },
   projects: [
     {
@@ -19,8 +21,9 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm start",
+    command: "NODE_ENV=test pnpm build && pnpm preview",
     url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
   },
 });
