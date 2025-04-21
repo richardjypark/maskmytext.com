@@ -475,7 +475,8 @@
         </div>
         <h1 id="main-title">Mask My Text</h1>
         <p id="main-description">
-          Enter your text on the left and see the masked result on the right
+          100% client-side text masking. Your data never leaves your device.
+          Works offline with no servers.
         </p>
         <div class="mode-toggle-container">
           <button
@@ -616,13 +617,13 @@
         if (mode === "asterisks") {
           mainTitle.textContent = "Mask My Text";
           mainDescription.textContent =
-            "Enter your text on the left and see the masked result on the right";
+            "100% client-side text masking. Your data never leaves your device. Works offline with no servers.";
           asterisksBtn.classList.add("active");
           fieldNumbersBtn.classList.remove("active");
         } else {
           mainTitle.textContent = "Obfuscate My Text";
           mainDescription.textContent =
-            "Enter your text on the left and see the obfuscated result on the right";
+            "100% client-side text obfuscation. Your data never leaves your device. Works offline with no servers.";
           fieldNumbersBtn.classList.add("active");
           asterisksBtn.classList.remove("active");
         }

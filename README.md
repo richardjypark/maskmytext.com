@@ -1,23 +1,41 @@
-# Build
+# Mask My Text
+
+A privacy-focused text masking tool that works entirely in your browser.
+
+## Key Features
+
+- **Client-side only** - Your data never leaves your device
+- **Works offline** - Use anytime, even without internet
+- **Powered by WebAssembly** - Fast and secure text processing
+
+## User Guide
+
+1. Enter or paste your text
+2. Choose masking options (eg. mask with \*\*\* or obfuscate)
+3. Copy masked result
+
+## Development
+
+### Build
 
 1. `wasm-pack build`
 2. `cd www`
 3. `pnpm install`
 
-## Dependencies
+### Dependencies
 
 1. `pnpm update`
 2. `pnpm prune`
 
-# Run
+### Run
 
-## Local Development
+#### Local Development
 
 1. `pnpm run dev`
 
-# Testing
+### Testing
 
-## E2E Tests
+#### E2E Tests
 
 1. Install Playwright browsers (first time only):
 
