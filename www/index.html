@@ -23,7 +23,7 @@
         --bg-color: #f5f5f5;
         --text-color: #060b14;
         --border-color: #efd7ab;
-        --button-hover: #12403c;
+        --button-hover: #07645d;
         --secondary-bg: #d8dadb;
         --accent-color: #efd7ab;
       }
@@ -236,6 +236,7 @@
 
       .button-primary:hover {
         background: var(--button-hover);
+        color: white;
       }
 
       .button-danger {
@@ -401,6 +402,7 @@
         min-width: 180px;
         opacity: 0.5;
         border-radius: 0.75rem;
+        border: 1px solid var(--border-color);
       }
 
       .mode-toggle:before {
@@ -418,6 +420,7 @@
 
       .mode-toggle:hover {
         opacity: 0.8;
+        color: white;
       }
 
       .mode-toggle.active {
@@ -429,6 +432,10 @@
 
       .mode-toggle.active:before {
         opacity: 1;
+      }
+
+      .mode-toggle.active:hover {
+        color: white;
       }
 
       [data-theme="dark"] .mode-toggle {
@@ -644,10 +651,26 @@
       });
 
       // Dark mode functionality
-      const theme = localStorage.getItem("theme") || "light";
+      const prefersDarkScheme = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      const savedTheme = localStorage.getItem("theme");
+      const theme = savedTheme || (prefersDarkScheme ? "dark" : "light");
       document.documentElement.setAttribute("data-theme", theme);
       themeToggle.textContent =
         theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+
+      // Listen for changes to the prefers-color-scheme media query
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", (e) => {
+          if (!localStorage.getItem("theme")) {
+            const newTheme = e.matches ? "dark" : "light";
+            document.documentElement.setAttribute("data-theme", newTheme);
+            themeToggle.textContent =
+              newTheme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+          }
+        });
 
       themeToggle.addEventListener("click", () => {
         const currentTheme =
@@ -800,10 +823,15 @@
         updateMaskedText();
         localStorage.removeItem("maskWords");
 
-        // Clear theme preference
+        // Clear theme preference and use system preference instead
         localStorage.removeItem("theme");
-        document.documentElement.setAttribute("data-theme", "light");
-        themeToggle.textContent = "🌙 Dark Mode";
+        const prefersDarkScheme = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        const newTheme = prefersDarkScheme ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", newTheme);
+        themeToggle.textContent =
+          newTheme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
 
         // Close settings popup
         settingsPopup.classList.remove("show");
