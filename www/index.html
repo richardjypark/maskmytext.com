@@ -846,34 +846,45 @@
       });
 
       // Handle adding mask words
+      function processAndAddWords(input) {
+        if (!input.trim()) return;
+
+        // Split by comma and process each word
+        const wordsToAdd = input
+          .split(",")
+          .map((word) => word.trim())
+          .filter((word) => word.length > 0);
+
+        // Remove duplicates from the input array itself first
+        const uniqueWordsToAdd = [...new Set(wordsToAdd)];
+
+        let addedCount = 0;
+        uniqueWordsToAdd.forEach((word) => {
+          if (!maskWords.has(word)) {
+            maskWords.add(word);
+            addWordChip(word);
+            addedCount++;
+          }
+        });
+
+        if (addedCount > 0) {
+          maskWordsInput.value = "";
+          updateMaskedText();
+          updateWordsCount();
+          saveWords(); // Save after adding words
+        }
+      }
+
+      // Handle adding mask words on Enter key
       maskWordsInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && maskWordsInput.value.trim()) {
-          const input = maskWordsInput.value.trim();
-          // Split by comma and process each word
-          const wordsToAdd = input
-            .split(",")
-            .map((word) => word.trim())
-            .filter((word) => word.length > 0);
-
-          // Remove duplicates from the input array itself first
-          const uniqueWordsToAdd = [...new Set(wordsToAdd)];
-
-          let addedCount = 0;
-          uniqueWordsToAdd.forEach((word) => {
-            if (!maskWords.has(word)) {
-              maskWords.add(word);
-              addWordChip(word);
-              addedCount++;
-            }
-          });
-
-          if (addedCount > 0) {
-            maskWordsInput.value = "";
-            updateMaskedText();
-            updateWordsCount();
-            saveWords(); // Save after adding words
-          }
+          processAndAddWords(maskWordsInput.value);
         }
+      });
+
+      // Handle adding mask words when input loses focus
+      maskWordsInput.addEventListener("blur", () => {
+        processAndAddWords(maskWordsInput.value);
       });
 
       function updateWordsCount() {
