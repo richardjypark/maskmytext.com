@@ -22,19 +22,23 @@
     />
     <style>
       :root {
-        --primary-color: #2563eb;
-        --bg-color: #f8fafc;
-        --text-color: #1e293b;
-        --border-color: #e2e8f0;
-        --button-hover: #1d4ed8;
+        --primary-color: #c04e01;
+        --bg-color: #f5f5f5;
+        --text-color: #060b14;
+        --border-color: #efd7ab;
+        --button-hover: #12403c;
+        --secondary-bg: #d8dadb;
+        --accent-color: #efd7ab;
       }
 
       [data-theme="dark"] {
-        --primary-color: #60a5fa;
-        --bg-color: #0f172a;
-        --text-color: #e2e8f0;
-        --border-color: #1e293b;
-        --button-hover: #3b82f6;
+        --primary-color: #efd7ab;
+        --bg-color: #060b14;
+        --text-color: #f5f5f5;
+        --border-color: #12403c;
+        --button-hover: #c04e01;
+        --secondary-bg: #12403c;
+        --accent-color: #c04e01;
       }
 
       * {
@@ -202,6 +206,37 @@
         color: white;
       }
 
+      .button-primary.copy-btn {
+        background: linear-gradient(45deg, #ff3366, #00ffff);
+        border: none;
+        position: relative;
+        z-index: 1;
+        overflow: hidden;
+        transition: all 0.3s ease;
+      }
+
+      .button-primary.copy-btn:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, #ff3366, #00ffff);
+        z-index: -1;
+        transition: opacity 0.3s ease;
+        opacity: 0.85;
+      }
+
+      .button-primary.copy-btn:hover:before {
+        opacity: 1;
+      }
+
+      .button-primary.copy-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
+      }
+
       .button-primary:hover {
         background: var(--button-hover);
       }
@@ -327,8 +362,8 @@
       }
 
       .word-chip {
-        background: var(--primary-color);
-        color: white;
+        background: var(--accent-color);
+        color: var(--text-color);
         padding: 0.25rem 0.75rem;
         border-radius: 1rem;
         font-size: 0.875rem;
@@ -340,7 +375,7 @@
       .word-chip button {
         background: none;
         border: none;
-        color: white;
+        color: var(--text-color);
         cursor: pointer;
         padding: 0;
         font-size: 1rem;
@@ -354,24 +389,61 @@
         justify-content: center;
         gap: 1rem;
         margin-top: 1.5rem;
+        padding: 0.5rem;
+        border-radius: 1rem;
       }
 
       .mode-toggle {
         padding: 0.75rem 1.5rem;
-        opacity: 0.7;
-        transition: opacity 0.3s, transform 0.2s;
+        transition: all 0.3s ease;
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        position: relative;
+        overflow: hidden;
+        min-width: 180px;
+        opacity: 0.5;
+        border-radius: 0.75rem;
+      }
+
+      .mode-toggle:before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, #0066ff, #ff00ff);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        z-index: -1;
       }
 
       .mode-toggle:hover {
-        opacity: 0.9;
-        transform: translateY(-1px);
+        opacity: 0.8;
       }
 
       .mode-toggle.active {
         opacity: 1;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        background: linear-gradient(45deg, #0066ff, #ff00ff);
+        color: white;
+        box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+      }
+
+      .mode-toggle.active:before {
+        opacity: 1;
+      }
+
+      [data-theme="dark"] .mode-toggle {
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      [data-theme="dark"] .mode-toggle:not(.active) {
+        opacity: 0.5;
+      }
+
+      [data-theme="dark"] .mode-toggle:hover:not(.active) {
+        opacity: 0.8;
       }
     </style>
   </head>
@@ -413,13 +485,13 @@
             class="button button-primary mode-toggle active"
             data-mode="asterisks"
           >
-            Mask Text (*****)
+            Mask (*****)
           </button>
           <button
             class="button button-primary mode-toggle"
             data-mode="field_numbers"
           >
-            Obfuscate Text (FIELD_1)
+            Obfuscate (FIELD_1)
           </button>
         </div>
       </header>
@@ -468,8 +540,8 @@
           </div>
           <div id="output"></div>
           <div class="button-group">
-            <button class="button button-primary" id="copy-btn">
-              📋 Copy Masked Text
+            <button class="button button-primary copy-btn" id="copy-btn">
+              📋 Copy Text
             </button>
           </div>
         </div>
