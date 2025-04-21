@@ -1,10 +1,20 @@
-const CACHE_NAME = "mask-my-text-v1";
-const BASE_PATH =
-  location.hostname === "maskmytext.com"
-    ? ""
-    : self.location.pathname.includes("/maskmytext.com/")
-    ? "/maskmytext.com"
-    : "";
+const CACHE_NAME = "mask-my-text-v2";
+const BASE_PATH = (() => {
+  const hostname = location.hostname;
+  const pathname = self.location.pathname;
+
+  if (hostname === "maskmytext.com" || hostname === "www.maskmytext.com") {
+    return ""; // Root path for production domain
+  }
+
+  // For GitHub Pages or other hosting with path prefix, extract just one instance of the path
+  const match = pathname.match(/\/maskmytext\.com(?!\/.+\/maskmytext\.com)/);
+  if (match) {
+    return "/maskmytext.com";
+  }
+
+  return ""; // Default to empty path
+})();
 const ASSETS_TO_CACHE = [
   `${BASE_PATH}/`,
   `${BASE_PATH}/index.html`,
@@ -50,6 +60,34 @@ self.addEventListener("activate", (event) => {
           cacheNames
             .filter((name) => name !== CACHE_NAME)
             .map((name) => caches.delete(name))
+        );
+      }),
+      // Clear fetch cache for problematic URLs
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.keys().then((requests) => {
+          return Promise.all(
+            requests
+              .filter((request) => {
+                // Identify problematic URLs with duplicated paths
+                const url = request.url;
+                return url.includes("/maskmytext.com/maskmytext.com/");
+              })
+              .map((request) => {
+                return cache.delete(request);
+              })
+          );
+        });
+      }),
+      // Force update all clients
+      self.clients.matchAll().then((clients) => {
+        return Promise.all(
+          clients.map((client) => {
+            // Notify clients to refresh
+            return client.postMessage({
+              type: "CACHE_UPDATED",
+              version: CACHE_NAME,
+            });
+          })
         );
       }),
       // Take control of all clients

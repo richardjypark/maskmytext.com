@@ -556,23 +556,50 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
-          // Use appropriate service worker path based on hostname
-          const isCustomDomain = window.location.hostname === "maskmytext.com";
-          const isGithubPages = window.location.hostname.includes("github.io");
-          const swPath = isCustomDomain
-            ? "/service-worker.js"
-            : isGithubPages
-            ? "/maskmytext.com/service-worker.js"
-            : "/service-worker.js";
+          // Determine the correct service worker path
+          const hostname = window.location.hostname;
+          const swPath =
+            hostname === "maskmytext.com" || hostname === "www.maskmytext.com"
+              ? "/service-worker.js"
+              : hostname.includes("github.io")
+              ? "/maskmytext.com/service-worker.js"
+              : "./service-worker.js";
 
+          // Register service worker with update handling
           navigator.serviceWorker
             .register(swPath)
             .then((registration) => {
               console.log("ServiceWorker registration successful");
+
+              // Check for updates
+              registration.addEventListener("updatefound", () => {
+                const newWorker = registration.installing;
+
+                // Listen for state changes on the new worker
+                newWorker.addEventListener("statechange", () => {
+                  if (
+                    newWorker.state === "installed" &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    console.log(
+                      "New service worker installed and waiting to activate"
+                    );
+                    // Prompt user to refresh or automatically refresh
+                    if (confirm("New version available! Reload to update?")) {
+                      window.location.reload();
+                    }
+                  }
+                });
+              });
             })
             .catch((err) => {
               console.log("ServiceWorker registration failed: ", err);
             });
+
+          // Listen for controller change events
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            console.log("Service worker controller changed");
+          });
         });
       }
 

@@ -13,4 +13,13 @@ export function maskText(text, maskWords) {
 
 if (typeof window !== "undefined") {
   window.maskText = maskText;
+
+  // Listen for messages from the service worker
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "CACHE_UPDATED") {
+      console.log("New version detected:", event.data.version);
+      // Reload the page to use the latest assets
+      window.location.reload();
+    }
+  });
 }
