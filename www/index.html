@@ -348,6 +348,31 @@
         display: flex;
         align-items: center;
       }
+
+      .mode-toggle-container {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+      }
+
+      .mode-toggle {
+        padding: 0.75rem 1.5rem;
+        opacity: 0.7;
+        transition: opacity 0.3s, transform 0.2s;
+      }
+
+      .mode-toggle:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+
+      .mode-toggle.active {
+        opacity: 1;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      }
     </style>
   </head>
   <body>
@@ -379,10 +404,24 @@
             </div>
           </div>
         </div>
-        <h1>Mask My Text</h1>
-        <p>
+        <h1 id="main-title">Mask My Text</h1>
+        <p id="main-description">
           Enter your text on the left and see the masked result on the right
         </p>
+        <div class="mode-toggle-container">
+          <button
+            class="button button-primary mode-toggle active"
+            data-mode="asterisks"
+          >
+            Mask Text (*****)
+          </button>
+          <button
+            class="button button-primary mode-toggle"
+            data-mode="field_numbers"
+          >
+            Obfuscate Text (FIELD_1)
+          </button>
+        </div>
       </header>
 
       <section class="mask-words-section">
@@ -492,6 +531,44 @@
 
       // Load saved words on page load
       loadSavedWords();
+
+      // Initialize UI state based on mask mode
+      function updateUIForMaskMode(mode) {
+        const mainTitle = document.getElementById("main-title");
+        const mainDescription = document.getElementById("main-description");
+        const asterisksBtn = document.querySelector('[data-mode="asterisks"]');
+        const fieldNumbersBtn = document.querySelector(
+          '[data-mode="field_numbers"]'
+        );
+
+        if (mode === "asterisks") {
+          mainTitle.textContent = "Mask My Text";
+          mainDescription.textContent =
+            "Enter your text on the left and see the masked result on the right";
+          asterisksBtn.classList.add("active");
+          fieldNumbersBtn.classList.remove("active");
+        } else {
+          mainTitle.textContent = "Obfuscate My Text";
+          mainDescription.textContent =
+            "Enter your text on the left and see the obfuscated result on the right";
+          fieldNumbersBtn.classList.add("active");
+          asterisksBtn.classList.remove("active");
+        }
+      }
+
+      // Initialize mask mode
+      const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
+      updateUIForMaskMode(savedMaskMode);
+
+      // Mode toggle event listeners
+      document.querySelectorAll(".mode-toggle").forEach((button) => {
+        button.addEventListener("click", () => {
+          const newMode = button.dataset.mode;
+          localStorage.setItem("maskMode", newMode);
+          updateUIForMaskMode(newMode);
+          updateMaskedText();
+        });
+      });
 
       // Dark mode functionality
       const theme = localStorage.getItem("theme") || "light";
