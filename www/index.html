@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="A privacy-focused text masking tool that works entirely in your browser."
+      content="An open-source, privacy-focused text masking tool that works entirely in your browser."
     />
     <link rel="manifest" href="./manifest.json" />
     <link
@@ -17,7 +17,65 @@
       href="./icons/icon-192x192.png"
     />
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
+    <script>
+      // Immediately set theme and initial states to prevent flash of incorrect styles
+      (function () {
+        const savedTheme = localStorage.getItem("theme");
+        const prefersDarkScheme = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        const initialTheme =
+          savedTheme || (prefersDarkScheme ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", initialTheme);
+
+        // Set initial mask mode class
+        const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
+        document.documentElement.setAttribute("data-mask-mode", savedMaskMode);
+
+        // Add initial-load class to prevent FOUC (Flash of Unstyled Content)
+        document.documentElement.classList.add("initial-load");
+      })();
+    </script>
     <style>
+      /* Prevent FOUC */
+      .initial-load .content-section {
+        opacity: 0;
+      }
+
+      .js-loaded .content-section {
+        opacity: 1;
+        transition: opacity 0.2s ease-in;
+      }
+
+      /* Reset all mode toggles to default state first */
+      .mode-toggle {
+        opacity: 0.5;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        box-shadow: none;
+      }
+
+      /* Then style only the active one */
+      [data-mask-mode="asterisks"] .mode-toggle[data-mode="asterisks"],
+      [data-mask-mode="field_numbers"] .mode-toggle[data-mode="field_numbers"] {
+        opacity: 1;
+        background: linear-gradient(45deg, #4776e6, #8e54e9);
+        color: white;
+        box-shadow: 0 0 20px rgba(71, 118, 230, 0.3);
+        border: none;
+      }
+
+      /* Ensure other toggle remains in inactive state */
+      [data-mask-mode="asterisks"] .mode-toggle[data-mode="field_numbers"],
+      [data-mask-mode="field_numbers"] .mode-toggle[data-mode="asterisks"] {
+        opacity: 0.5;
+        background: transparent;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        box-shadow: none;
+      }
+
       :root {
         --primary-color: #c04e01;
         --bg-color: #f5f5f5;
@@ -36,6 +94,19 @@
         --button-hover: #c04e01;
         --secondary-bg: #12403c;
         --accent-color: #c04e01;
+      }
+
+      /* Hide content until initialization */
+      .mode-toggle-container,
+      .mask-words-section,
+      #word-chips {
+        visibility: hidden;
+      }
+
+      .js-loaded .mode-toggle-container,
+      .js-loaded .mask-words-section,
+      .js-loaded #word-chips {
+        visibility: visible;
       }
 
       * {
@@ -240,12 +311,13 @@
       }
 
       .button-danger {
-        background: #ef4444;
-        color: white;
+        background: transparent;
+        color: #ef4444;
+        border: 1px solid #ef4444;
       }
 
       .button-danger:hover {
-        background: #dc2626;
+        background: rgba(239, 68, 68, 0.1);
       }
 
       .button-secondary {
@@ -279,6 +351,17 @@
         padding: 1rem;
         border-radius: 0.375rem;
         border: 1px solid var(--border-color);
+        position: relative;
+      }
+
+      #output:empty::before {
+        content: attr(data-placeholder);
+        color: var(--text-color);
+        opacity: 0.6;
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        pointer-events: none;
       }
 
       @media (max-width: 768px) {
@@ -308,6 +391,7 @@
       }
 
       .mask-words-section {
+        margin-top: 1rem;
         margin-bottom: 2rem;
         background: var(--bg-color);
         border: 1px solid var(--border-color);
@@ -385,24 +469,30 @@
       .mode-toggle-container {
         display: flex;
         justify-content: center;
-        gap: 1rem;
-        margin-top: 1.5rem;
+        gap: 1.5rem;
+        margin-top: 1rem;
         padding: 0.5rem;
         border-radius: 1rem;
       }
 
       .mode-toggle {
-        padding: 0.75rem 1.5rem;
+        padding: 1rem 1.5rem;
         transition: all 0.3s ease;
         background: transparent;
         border: none;
         color: var(--text-color);
         position: relative;
         overflow: hidden;
-        min-width: 180px;
+        min-width: 200px;
         opacity: 0.5;
-        border-radius: 0.75rem;
+        border-radius: 2rem;
         border: 1px solid var(--border-color);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.1rem;
+        font-weight: 500;
+        height: 50px;
       }
 
       .mode-toggle:before {
@@ -412,7 +502,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: linear-gradient(45deg, #0066ff, #ff00ff);
+        background: linear-gradient(45deg, #4776e6, #8e54e9);
         opacity: 0;
         transition: opacity 0.3s ease;
         z-index: -1;
@@ -425,9 +515,10 @@
 
       .mode-toggle.active {
         opacity: 1;
-        background: linear-gradient(45deg, #0066ff, #ff00ff);
+        background: linear-gradient(45deg, #4776e6, #8e54e9);
         color: white;
-        box-shadow: 0 0 20px rgba(0, 102, 255, 0.3);
+        box-shadow: 0 0 20px rgba(71, 118, 230, 0.3);
+        border: none;
       }
 
       .mode-toggle.active:before {
@@ -559,75 +650,80 @@
         </div>
         <h1 id="main-title">Mask My Text</h1>
         <p id="main-description">
-          100% client-side text masking. Your data never leaves your device.
-          Works offline with no servers.
+          An
+          <a
+            href="https://github.com/richardjypark/maskmytext.com"
+            target="_blank"
+            rel="noopener"
+            style="color: var(--primary-color); text-decoration: none"
+            >open-source</a
+          >, privacy-focused text masking tool that works entirely in your
+          browser.
         </p>
-        <div class="mode-toggle-container">
-          <button
-            class="button button-primary mode-toggle active"
-            data-mode="asterisks"
-          >
-            Mask (*****)
-          </button>
-          <button
-            class="button button-primary mode-toggle"
-            data-mode="field_numbers"
-          >
-            Obfuscate (FIELD_1)
-          </button>
+        <div class="content-section">
+          <div class="mode-toggle-container">
+            <button
+              class="button button-primary mode-toggle"
+              data-mode="asterisks"
+            >
+              Mask (*****)
+            </button>
+            <button
+              class="button button-primary mode-toggle"
+              data-mode="field_numbers"
+            >
+              Obfuscate (FIELD_1)
+            </button>
+          </div>
+
+          <section class="mask-words-section">
+            <div class="mask-words-header">
+              <h2 id="words-heading">Words to Mask</h2>
+              <button class="button button-danger" id="clear-words-btn">
+                🗑️ Clear Word List
+              </button>
+            </div>
+            <input
+              type="text"
+              id="mask-words-input"
+              class="mask-words-input"
+              placeholder="Type a word and press Enter to add it to the mask list"
+            />
+            <p class="mask-words-help">
+              Words to be masked in your text. Use commas for multiple words,
+              press Enter to add.
+            </p>
+            <div id="word-chips" class="word-chips-container"></div>
+          </section>
+
+          <main class="content">
+            <div class="text-box">
+              <div class="text-box-header">
+                <h2>Input Text</h2>
+                <button class="button button-danger" id="clear-btn">
+                  🗑️ Clear Text
+                </button>
+              </div>
+              <textarea
+                id="input"
+                placeholder="Type or paste your text here..."
+              ></textarea>
+            </div>
+            <div class="text-box">
+              <div class="text-box-header">
+                <h2>Masked Output</h2>
+                <button class="button button-primary copy-btn" id="copy-btn">
+                  📋 Copy Text
+                </button>
+              </div>
+              <div
+                id="output"
+                data-placeholder="Ex: secret123 becomes ********* or FIELD_1 based on selected mode"
+              ></div>
+            </div>
+          </main>
         </div>
       </header>
-
-      <section class="mask-words-section">
-        <div class="mask-words-header">
-          <h2>Words to Mask</h2>
-        </div>
-        <input
-          type="text"
-          id="mask-words-input"
-          class="mask-words-input"
-          placeholder="Type a word and press Enter to add it to the mask list"
-        />
-        <p class="mask-words-help">
-          These words will be specifically masked in your text
-        </p>
-        <div id="word-chips" class="word-chips-container"></div>
-        <div class="mask-words-controls">
-          <span id="words-count" class="char-count">0 words</span>
-          <button class="button button-danger" id="clear-words-btn">
-            🗑️ Clear Word List
-          </button>
-        </div>
-      </section>
-
-      <main class="content">
-        <div class="text-box">
-          <div class="text-box-header">
-            <h2>Input Text</h2>
-            <span class="char-count" id="char-count">0 characters</span>
-          </div>
-          <textarea
-            id="input"
-            placeholder="Type or paste your text here..."
-          ></textarea>
-          <div class="button-group">
-            <button class="button button-danger" id="clear-btn">
-              🗑️ Clear Text
-            </button>
-          </div>
-        </div>
-        <div class="text-box">
-          <div class="text-box-header">
-            <h2>Masked Output</h2>
-          </div>
-          <div id="output"></div>
-          <div class="button-group">
-            <button class="button button-primary copy-btn" id="copy-btn">
-              📋 Copy Text
-            </button>
-          </div>
-        </div>
-      </main>
     </div>
     <div class="toast-notification" id="toast-notification">
       <div class="toast-content">
@@ -660,6 +756,27 @@
         </button>
       </div>
     </div>
+
+    <footer
+      style="
+        text-align: center;
+        margin-top: 2rem;
+        padding-bottom: 1rem;
+        color: var(--text-color);
+        opacity: 0.7;
+        font-size: 0.9rem;
+      "
+    >
+      Created by
+      <a
+        href="https://www.richardjypark.com/"
+        style="color: var(--primary-color); text-decoration: none"
+        target="_blank"
+        rel="noopener"
+        referrerpolicy="origin"
+        >richardjypark</a
+      >
+    </footer>
     <script src="./bootstrap.js"></script>
     <script>
       if ("serviceWorker" in navigator) {
@@ -735,17 +852,41 @@
         });
       }
 
+      // Initialize all settings before DOM content loads
+      document.addEventListener("DOMContentLoaded", () => {
+        // Initialize theme toggle button text
+        const currentTheme =
+          document.documentElement.getAttribute("data-theme");
+        themeToggle.textContent =
+          currentTheme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+
+        // Initialize mask mode
+        const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
+
+        // Update words heading text before showing content
+        const wordsHeading = document.getElementById("words-heading");
+        wordsHeading.textContent =
+          savedMaskMode === "asterisks"
+            ? "Words to Mask"
+            : "Words to Obfuscate";
+
+        // Load saved words before showing content
+        loadSavedWords();
+
+        // Remove initial-load class and add js-loaded to show content
+        document.documentElement.classList.remove("initial-load");
+        document.documentElement.classList.add("js-loaded");
+      });
+
       // DOM Elements
       const inputTextarea = document.getElementById("input");
       const outputDiv = document.getElementById("output");
-      const charCount = document.getElementById("char-count");
       const clearBtn = document.getElementById("clear-btn");
       const copyBtn = document.getElementById("copy-btn");
       const themeToggle = document.getElementById("theme-toggle");
       const maskWordsInput = document.getElementById("mask-words-input");
       const wordChipsContainer = document.getElementById("word-chips");
       const clearWordsBtn = document.getElementById("clear-words-btn");
-      const wordsCount = document.getElementById("words-count");
       const settingsBtn = document.getElementById("settings-btn");
       const settingsPopup = document.getElementById("settings-popup");
       const clearDataBtn = document.getElementById("clear-data-btn");
@@ -763,7 +904,6 @@
         if (savedWords) {
           maskWords = new Set(JSON.parse(savedWords));
           renderWordChips();
-          updateWordsCount();
         }
       }
 
@@ -772,43 +912,36 @@
         localStorage.setItem("maskWords", JSON.stringify([...maskWords]));
       }
 
-      // Load saved words on page load
-      loadSavedWords();
-
       // Initialize UI state based on mask mode
       function updateUIForMaskMode(mode) {
-        const mainTitle = document.getElementById("main-title");
-        const mainDescription = document.getElementById("main-description");
         const asterisksBtn = document.querySelector('[data-mode="asterisks"]');
         const fieldNumbersBtn = document.querySelector(
           '[data-mode="field_numbers"]'
         );
 
         if (mode === "asterisks") {
-          mainTitle.textContent = "Mask My Text";
-          mainDescription.textContent =
-            "100% client-side text masking. Your data never leaves your device. Works offline with no servers.";
           asterisksBtn.classList.add("active");
           fieldNumbersBtn.classList.remove("active");
         } else {
-          mainTitle.textContent = "Obfuscate My Text";
-          mainDescription.textContent =
-            "100% client-side text obfuscation. Your data never leaves your device. Works offline with no servers.";
           fieldNumbersBtn.classList.add("active");
           asterisksBtn.classList.remove("active");
         }
       }
 
-      // Initialize mask mode
-      const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
-      updateUIForMaskMode(savedMaskMode);
+      // Function to update text based on mode
+      function updateTextForMode(mode) {
+        const wordsHeading = document.getElementById("words-heading");
+        wordsHeading.textContent =
+          mode === "asterisks" ? "Words to Mask" : "Words to Obfuscate";
+      }
 
       // Mode toggle event listeners
       document.querySelectorAll(".mode-toggle").forEach((button) => {
         button.addEventListener("click", () => {
           const newMode = button.dataset.mode;
+          document.documentElement.setAttribute("data-mask-mode", newMode);
           localStorage.setItem("maskMode", newMode);
-          updateUIForMaskMode(newMode);
+          updateTextForMode(newMode);
           updateMaskedText();
         });
       });
@@ -870,7 +1003,6 @@
         if (addedCount > 0) {
           maskWordsInput.value = "";
           updateMaskedText();
-          updateWordsCount();
           saveWords(); // Save after adding words
         }
       }
@@ -886,11 +1018,6 @@
       maskWordsInput.addEventListener("blur", () => {
         processAndAddWords(maskWordsInput.value);
       });
-
-      function updateWordsCount() {
-        const count = maskWords.size;
-        wordsCount.textContent = `${count} word${count !== 1 ? "s" : ""}`;
-      }
 
       // Create and add word chip
       function addWordChip(word) {
@@ -908,7 +1035,6 @@
         maskWords.delete(word);
         updateMaskedText();
         renderWordChips();
-        updateWordsCount();
         saveWords(); // Save after removing word
       }
 
@@ -934,7 +1060,6 @@
       // Update input event to use the masking function
       inputTextarea.addEventListener("input", (e) => {
         const text = e.target.value;
-        charCount.textContent = `${text.length} characters`;
         updateMaskedText();
       });
 
@@ -943,7 +1068,6 @@
         maskWords.clear();
         wordChipsContainer.innerHTML = "";
         updateMaskedText();
-        updateWordsCount();
         saveWords(); // Save after clearing list
       });
 
@@ -951,7 +1075,6 @@
       clearBtn.addEventListener("click", () => {
         inputTextarea.value = "";
         outputDiv.textContent = "";
-        charCount.textContent = "0 characters";
       });
 
       // Copy functionality
@@ -993,7 +1116,6 @@
         // Clear mask words
         maskWords.clear();
         wordChipsContainer.innerHTML = "";
-        updateWordsCount();
         updateMaskedText();
         localStorage.removeItem("maskWords");
 

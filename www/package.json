@@ -14,7 +14,7 @@
     "preview": "pnpm dlx http-server dist -p 8080 --cors -c-1",
     "dev": "pnpm run wasm:build && pnpm run build && pnpm start",
     "wasm:build": "cd .. && wasm-pack build",
-    "wasm:watch": "cd .. && cargo watch -i .gitignore -i 'pkg/*' -s 'wasm-pack build'",
+    "wasm:watch": "cd .. && cargo watch -i .gitignore -i 'pkg/*' -i 'www/*' -s 'wasm-pack build'",
     "clean": "rm -rf dist/* && rm -rf ../pkg/*",
     "watch": "concurrently \"pnpm run wasm:watch\" \"webpack serve --config webpack.config.js\"",
     "test": "playwright test",

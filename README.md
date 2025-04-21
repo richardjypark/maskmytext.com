@@ -2,6 +2,8 @@
 
 A privacy-focused text masking tool that works entirely in your browser.
 
+[![Build and Test](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml)
+
 ## Key Features
 
 - **Client-side only** - Your data never leaves your device
