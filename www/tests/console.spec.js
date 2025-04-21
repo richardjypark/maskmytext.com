@@ -1,21 +1,29 @@
 const { test, expect } = require("@playwright/test");
 
 test("should output the expected log message", async ({ page }) => {
-  // Create a promise that will resolve with the next console message
-  const consoleMessagePromise = new Promise((resolve) => {
-    page.on("console", (msg) => {
-      if (msg.type() === "log") {
-        resolve(msg.text());
-      }
-    });
+  // Create an array to collect console messages
+  const consoleMessages = [];
+
+  // Listen for multiple console messages
+  page.on("console", (msg) => {
+    if (msg.type() === "log") {
+      consoleMessages.push(msg.text());
+    }
   });
 
   // Navigate to the page
   await page.goto("/");
 
-  // Wait for and get the console message
-  const logMessage = await consoleMessagePromise;
+  // Wait a moment for all console messages to be processed
+  await page.waitForTimeout(1000);
 
-  // Verify the exact message from the Rust code
-  expect(logMessage).toBe("Hello, console log message mask-my-text from Rust!");
+  // Check if any of the messages match our expected Rust greeting
+  const expectedMessage = "Hello, console log message mask-my-text from Rust!";
+  const messageFound = consoleMessages.some((msg) => msg === expectedMessage);
+
+  // Output all collected messages for debugging
+  console.log("Collected console messages:", consoleMessages);
+
+  // Verify the Rust message was output
+  expect(messageFound).toBe(true);
 });

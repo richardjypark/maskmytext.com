@@ -76,7 +76,7 @@ jobs:
 
       - name: Build production bundle
         working-directory: ./www
-        run: pnpm build
+        run: pnpm build:prod
 
       # ─── GitHub Pages deployment prep ───────────────────────────────────────────
       - name: Configure GitHub Pages

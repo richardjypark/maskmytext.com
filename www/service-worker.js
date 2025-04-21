@@ -1,16 +1,19 @@
 const CACHE_NAME = "mask-my-text-v1";
+const BASE_PATH = self.location.pathname.includes("/maskmytext.com/")
+  ? "/maskmytext.com"
+  : "";
 const ASSETS_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/bootstrap.js",
-  "/index.js",
-  "/manifest.json",
-  "/icons/icon-192x192.png",
-  "/icons/icon-512x512.png",
+  `${BASE_PATH}/`,
+  `${BASE_PATH}/index.html`,
+  `${BASE_PATH}/bootstrap.js`,
+  `${BASE_PATH}/index.js`,
+  `${BASE_PATH}/manifest.json`,
+  `${BASE_PATH}/icons/icon-192x192.png`,
+  `${BASE_PATH}/icons/icon-512x512.png`,
   // WebAssembly and generated files
-  "/pkg/mask_my_text_bg.wasm",
-  "/pkg/mask_my_text.js",
-  "/pkg/mask_my_text_bg.js",
+  `${BASE_PATH}/pkg/mask_my_text_bg.wasm`,
+  `${BASE_PATH}/pkg/mask_my_text.js`,
+  `${BASE_PATH}/pkg/mask_my_text_bg.js`,
 ];
 
 // Install event - cache assets

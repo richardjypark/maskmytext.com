@@ -437,8 +437,14 @@
     <script>
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
+          // Determine if we're on GitHub Pages and get the correct path
+          const isGithubPages = window.location.hostname.includes("github.io");
+          const swPath = isGithubPages
+            ? "/maskmytext.com/service-worker.js"
+            : "/service-worker.js";
+
           navigator.serviceWorker
-            .register("/service-worker.js")
+            .register(swPath)
             .then((registration) => {
               console.log("ServiceWorker registration successful");
             })
