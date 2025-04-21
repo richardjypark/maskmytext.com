@@ -1,7 +1,7 @@
 {
   "name": "Mask My Text",
   "short_name": "MaskText",
-  "description": "Text masking application with WebAssembly support",
+  "description": "A privacy-focused text masking tool that works entirely in your browser.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
