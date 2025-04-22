@@ -974,7 +974,20 @@
                       .getElementById("update-now")
                       .addEventListener("click", () => {
                         updateToast.classList.remove("show");
-                        window.location.reload();
+                        // Send message to service worker to skip waiting
+                        registration.waiting.postMessage({
+                          action: "skipWaiting",
+                        });
+                        // Add event listener for controlling change if not already listening
+                        navigator.serviceWorker.addEventListener(
+                          "controllerchange",
+                          () => {
+                            console.log(
+                              "New service worker activated, reloading page"
+                            );
+                            window.location.reload();
+                          }
+                        );
                       });
 
                     // Later button handler

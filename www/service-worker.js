@@ -1,4 +1,4 @@
-const CACHE_NAME = "mask-my-text-v2";
+const CACHE_NAME = "mask-my-text-v3";
 const BASE_PATH = (() => {
   const hostname = location.hostname;
   const pathname = self.location.pathname;
@@ -46,8 +46,13 @@ self.addEventListener("install", (event) => {
       })
     )
   );
-  // Activate the new service worker immediately
-  self.skipWaiting();
+});
+
+// Listen for message from the client to trigger skipWaiting
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.action === "skipWaiting") {
+    self.skipWaiting();
+  }
 });
 
 // Activate event - clean up old caches and take control
