@@ -224,6 +224,8 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 2rem;
+        width: 100%;
+        position: relative;
       }
 
       #decode-section {
@@ -269,6 +271,7 @@
         border-radius: 0.375rem;
         border: 1px solid var(--border-color);
         position: relative;
+        text-align: left;
       }
 
       .decode-output:empty::before {
@@ -287,6 +290,9 @@
         border-radius: 0.5rem;
         padding: 1rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        box-sizing: border-box;
+        position: relative;
       }
 
       .text-box-header {
@@ -294,11 +300,14 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1rem;
+        min-height: 32px;
       }
 
-      .text-box h2 {
+      .text-box-header h2 {
         font-size: 1.25rem;
         color: var(--text-color);
+        text-align: left;
+        min-width: 150px;
       }
 
       .char-count {
@@ -407,6 +416,7 @@
         border-radius: 0.375rem;
         border: 1px solid var(--border-color);
         position: relative;
+        text-align: left;
       }
 
       #output:empty::before {
@@ -467,6 +477,8 @@
         border: 1px solid var(--border-color);
         border-radius: 0.5rem;
         padding: 1.5rem;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .mask-words-header {
@@ -474,6 +486,7 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 1rem;
+        min-height: 32px;
       }
 
       .mask-words-controls {
@@ -543,6 +556,8 @@
         margin-top: 1rem;
         padding: 0.5rem;
         border-radius: 1rem;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .mode-toggle {
@@ -554,6 +569,7 @@
         position: relative;
         overflow: hidden;
         min-width: 200px;
+        width: 200px;
         opacity: 0.5;
         border-radius: 2rem;
         border: 1px solid var(--border-color);
@@ -563,6 +579,7 @@
         font-size: 1.1rem;
         font-weight: 500;
         height: 50px;
+        flex: 0 0 auto;
       }
 
       .mode-toggle:before {
@@ -696,11 +713,21 @@
         }
         .mode-toggle {
           min-width: 0 !important;
+          width: auto !important;
           flex: 1 1 0;
           padding: 0.75rem 1rem;
           font-size: 1rem;
           height: auto;
         }
+      }
+
+      #words-heading {
+        min-width: 200px;
+      }
+
+      .content-section {
+        width: 100%;
+        transition: opacity 0.2s ease-in;
       }
     </style>
   </head>
@@ -1002,6 +1029,18 @@
         // Setup decode button functionality
         const decodeInput = document.getElementById("decode-input");
         const decodeOutput = document.getElementById("decode-output");
+
+        // Auto-decode on input (moved inside DOMContentLoaded)
+        decodeInput.addEventListener("input", () => {
+          const inputText = decodeInput.value;
+          if (window.decodeObfuscatedText) {
+            const decodedText = window.decodeObfuscatedText(
+              inputText,
+              maskWords
+            );
+            decodeOutput.textContent = decodedText;
+          }
+        });
       });
 
       // DOM Elements
@@ -1064,6 +1103,17 @@
         const outputHeading = document.getElementById("output-heading");
         const decodeSection = document.getElementById("decode-section");
 
+        // Set headings using CSS content to prevent layout shifts
+        document.documentElement.setAttribute(
+          "data-mask-words-heading",
+          mode === "asterisks" ? "Words to Mask" : "Words to Obfuscate"
+        );
+        document.documentElement.setAttribute(
+          "data-output-heading",
+          mode === "asterisks" ? "Masked Output" : "Obfuscated Output"
+        );
+
+        // Update actual text for accessibility
         wordsHeading.textContent =
           mode === "asterisks" ? "Words to Mask" : "Words to Obfuscate";
         outputHeading.textContent =
@@ -1318,13 +1368,6 @@
             copyDecodeBtn.textContent = originalText;
           }, 2000);
         }
-      });
-
-      // Auto-decode on input
-      decodeInput.addEventListener("input", () => {
-        const inputText = decodeInput.value;
-        const decodedText = decodeObfuscatedText(inputText, maskWords);
-        decodeOutput.textContent = decodedText;
       });
     </script>
   </body>
