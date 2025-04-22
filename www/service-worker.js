@@ -1,4 +1,4 @@
-const CACHE_NAME = "mask-my-text-v3";
+const CACHE_NAME = "mask-my-text-v4";
 const BASE_PATH = (() => {
   const hostname = location.hostname;
   const pathname = self.location.pathname;
