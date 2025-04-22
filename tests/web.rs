@@ -196,3 +196,72 @@ fn test_mask_and_decode_roundtrip() {
         "Decoded text should match the original text"
     );
 }
+
+#[wasm_bindgen_test]
+fn test_mask_and_decode_case_preservation() {
+    // Test case preservation for different case patterns
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("name"));
+    mask_words.add(&JsValue::from_str("email"));
+    mask_words.add(&JsValue::from_str("id"));
+    
+    let original = "My Name is john, my EMAIL is test@example.com, and my ID is ABC123.";
+    
+    // First mask the text - should include case information in fields
+    let masked = mask_text_with_fields(original.to_string(), &mask_words);
+    assert_eq!(
+        masked,
+        "My FIELD_1_F is john, my FIELD_2_A is test@example.com, and my FIELD_3_A is ABC123.",
+        "Text should be masked with case information preserved in field suffixes"
+    );
+    
+    // Then decode it back - should restore original casing
+    let decoded = decode_obfuscated_text(masked, &mask_words);
+    assert_eq!(
+        decoded,
+        original,
+        "Decoded text should preserve the original casing of words"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_case_preservation_variations() {
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("test"));
+    
+    // Test lowercase
+    let lowercase = "this is a test message";
+    let masked_lower = mask_text_with_fields(lowercase.to_string(), &mask_words);
+    assert_eq!(
+        masked_lower,
+        "this is a FIELD_1 message",
+        "Lowercase word should use base field without suffix"
+    );
+    
+    // Test First Letter Capitalized
+    let titlecase = "this is a Test message";
+    let masked_title = mask_text_with_fields(titlecase.to_string(), &mask_words);
+    assert_eq!(
+        masked_title,
+        "this is a FIELD_1_F message",
+        "Title case word should use _F suffix"
+    );
+    
+    // Test ALL CAPS
+    let uppercase = "this is a TEST message";
+    let masked_upper = mask_text_with_fields(uppercase.to_string(), &mask_words);
+    assert_eq!(
+        masked_upper,
+        "this is a FIELD_1_A message",
+        "Uppercase word should use _A suffix"
+    );
+    
+    // Test decoding preserves all cases
+    let decoded_lower = decode_obfuscated_text(masked_lower, &mask_words);
+    let decoded_title = decode_obfuscated_text(masked_title, &mask_words);
+    let decoded_upper = decode_obfuscated_text(masked_upper, &mask_words);
+    
+    assert_eq!(decoded_lower, lowercase, "Should preserve lowercase");
+    assert_eq!(decoded_title, titlecase, "Should preserve title case");
+    assert_eq!(decoded_upper, uppercase, "Should preserve uppercase");
+}
