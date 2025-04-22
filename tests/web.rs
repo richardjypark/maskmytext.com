@@ -121,15 +121,18 @@ fn test_mask_text_with_fields_multiple_occurrences() {
 fn test_decode_obfuscated_text_basic() {
     // Create a test Set with words to decode - email is longer so it will be processed first
     let mask_words = Set::new(&JsValue::NULL);
-    mask_words.add(&JsValue::from_str("John"));
-    mask_words.add(&JsValue::from_str("john@example.com"));
+    mask_words.add(&JsValue::from_str("John"));  // Note: Capitalized in mask list
+    mask_words.add(&JsValue::from_str("john@example.com"));  // Note: Lowercase in mask list
     
-    // john@example.com (15 chars) gets FIELD_1, John (4 chars) gets FIELD_2
-    let input = "My FIELD_2 is FIELD_2 and my FIELD_1 is FIELD_1.";
-    let expected = "My John is John and my john@example.com is john@example.com.";
+    // Test all casing variants:
+    // - Base field (no suffix) -> lowercase
+    // - _F suffix -> First letter capitalized
+    // - _A suffix -> ALL CAPS
+    let input = "My FIELD_2 is FIELD_2_F and my FIELD_1 is FIELD_1_A.";
+    let expected = "My john is John and my john@example.com is JOHN@EXAMPLE.COM.";
     
     let result = decode_obfuscated_text(input.to_string(), &mask_words);
-    assert_eq!(result, expected, "FIELD_N should be replaced with corresponding words");
+    assert_eq!(result, expected, "FIELD_N should be replaced with corresponding words with correct casing");
 }
 
 #[wasm_bindgen_test]
@@ -288,4 +291,22 @@ fn test_mask_text_substring_words() {
     let result_fields = mask_text_with_fields(input.to_string(), &mask_words);
     let expected_fields = "FIELD_2 and FIELD_1 are different names";
     assert_eq!(result_fields, expected_fields, "Field masking should handle substring words correctly");
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_mask_word_casing() {
+    // Test that mask words with different casing are handled correctly
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("Rich"));    // Capitalized in mask list
+    mask_words.add(&JsValue::from_str("richard")); // Lowercase in mask list
+    
+    // Text with various casings of the masked words
+    let input = "i want to know which names get removed from the mask, FIELD_2 or FIELD_1 or FIELD_1_F, or FIELD_2, or FIELD_2_F or FIELD_1_A or FIELD_2_A";
+    
+    // Expected behavior: Base field without suffix should use lowercase,
+    // _F suffix should have first letter capitalized, _A suffix should be all uppercase
+    let expected = "i want to know which names get removed from the mask, rich or richard or Richard, or rich, or Rich or RICHARD or RICH";
+    
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "Decoding should properly handle casing regardless of mask word casing");
 }

@@ -183,11 +183,17 @@ pub fn decode_obfuscated_text(text: String, mask_words: &Set) -> String {
     // Create field mappings
     for (word, _) in word_vec {
         let base_field = format!("FIELD_{}", field_counter);
+        let lowercase_word = word.to_lowercase();
         
         // Map each variant to the appropriate cased version of the word
+        // For _A suffix, use the original word's uppercase instead of lowercase word uppercase
         field_map.insert(format!("{}_A", base_field), word.to_uppercase());
-        field_map.insert(format!("{}_F", base_field), capitalize_first(&word));
-        field_map.insert(base_field.clone(), word.clone());
+        
+        // For _F suffix, use the lowercase word but capitalize first letter
+        field_map.insert(format!("{}_F", base_field), capitalize_first(&lowercase_word));
+        
+        // For the base field (no suffix), use the lowercase version of the word
+        field_map.insert(base_field.clone(), lowercase_word);
         
         field_counter += 1;
     }
