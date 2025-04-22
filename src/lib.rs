@@ -19,33 +19,38 @@ pub fn greet() -> String {
 pub fn mask_text(text: String, mask_words: &Set) -> String {
     let mut masked_text = text;
     
-    // Convert the JS Set to a Vec of strings we can iterate
+    // Convert the JS Set to a Vec of strings we can sort
     let words: Array = Array::from(mask_words);
     let words_len = words.length();
+    let mut word_vec: Vec<String> = Vec::new();
     
+    // Collect words into a Vec
     for i in 0..words_len {
-        let word_val = words.get(i);
-        // JsValue has an as_string method that returns Option<String>
-        if let Some(word) = word_val.as_string() {
-            if word.is_empty() {
-                continue;
+        if let Some(word) = words.get(i).as_string() {
+            if !word.is_empty() {
+                word_vec.push(word);
             }
-            
-            // Create a masked version with asterisks matching word length
-            let masked = "*".repeat(word.len());
-            
-            // Carefully escape the word for regex and wrap in word boundary markers if applicable
-            let escaped_word = regex::escape(&word);
-            
-            // Try to create and apply the regex, log any errors but continue processing
-            match Regex::new(&format!(r"(?i){}", escaped_word)) {
-                Ok(re) => {
-                    masked_text = re.replace_all(&masked_text, &masked).to_string();
-                },
-                Err(e) => {
-                    // Log the error but continue with other words
-                    console::log_1(&JsValue::from_str(&format!("Regex error for word '{}': {}", word, e)));
-                }
+        }
+    }
+    
+    // Sort words by length in descending order
+    word_vec.sort_by(|a, b| b.len().cmp(&a.len()));
+    
+    for word in word_vec {
+        // Create a masked version with asterisks matching word length
+        let masked = "*".repeat(word.len());
+        
+        // Carefully escape the word for regex and wrap in word boundary markers
+        let escaped_word = regex::escape(&word);
+        
+        // Try to create and apply the regex, log any errors but continue processing
+        match Regex::new(&format!(r"(?i)\b{}\b", escaped_word)) {
+            Ok(re) => {
+                masked_text = re.replace_all(&masked_text, &masked).to_string();
+            },
+            Err(e) => {
+                // Log the error but continue with other words
+                console::log_1(&JsValue::from_str(&format!("Regex error for word '{}': {}", word, e)));
             }
         }
     }
@@ -58,47 +63,65 @@ pub fn mask_text_with_fields(text: String, mask_words: &Set) -> String {
     let mut masked_text = text;
     let mut field_counter = 1;
     
-    // Convert the JS Set to a Vec of strings we can iterate
+    // Convert the JS Set to a Vec of strings we can sort
     let words: Array = Array::from(mask_words);
     let words_len = words.length();
+    let mut word_vec: Vec<(String, usize)> = Vec::new();
     
+    // Collect words into a Vec with their original indices
     for i in 0..words_len {
-        let word_val = words.get(i);
-        // JsValue has an as_string method that returns Option<String>
-        if let Some(word) = word_val.as_string() {
-            if word.is_empty() {
-                continue;
+        if let Some(word) = words.get(i).as_string() {
+            if !word.is_empty() {
+                word_vec.push((word, i as usize));
             }
-            
-            // Create a masked version with FIELD_<number> format
-            let masked = format!("FIELD_{}", field_counter);
+        }
+    }
+    
+    // Sort words by length in descending order, using original index as tiebreaker
+    word_vec.sort_by(|a, b| {
+        b.0.len().cmp(&a.0.len())
+            .then_with(|| a.1.cmp(&b.1))
+    });
+    
+    // Create a mapping of words to their field numbers
+    let mut word_to_field: HashMap<String, usize> = HashMap::new();
+    
+    for (word, _) in &word_vec {
+        if !word_to_field.contains_key(word) {
+            word_to_field.insert(word.clone(), field_counter);
             field_counter += 1;
-            
-            // Carefully escape the word for regex and wrap in word boundary markers if applicable
-            let escaped_word = regex::escape(&word);
-            
-            // Try to create and apply the regex, log any errors but continue processing
-            match Regex::new(&format!(r"(?i){}", escaped_word)) {
-                Ok(re) => {
-                    // Collect all matches and their replacements first
-                    let mut replacements: Vec<(usize, usize, String)> = Vec::new();
-                    
-                    for m in re.find_iter(&masked_text) {
-                        let matched_word = &masked_text[m.start()..m.end()];
-                        let case_suffix = determine_case_suffix(matched_word);
-                        let case_masked = format!("{}{}", masked, case_suffix);
-                        replacements.push((m.start(), m.end(), case_masked));
-                    }
-                    
-                    // Apply replacements in reverse order
-                    for (start, end, replacement) in replacements.into_iter().rev() {
-                        masked_text.replace_range(start..end, &replacement);
-                    }
-                },
-                Err(e) => {
-                    // Log the error but continue with other words
-                    console::log_1(&JsValue::from_str(&format!("Regex error for word '{}': {}", word, e)));
+        }
+    }
+    
+    // Process words in sorted order
+    for (word, _) in word_vec {
+        let field_num = word_to_field.get(&word).unwrap();
+        let masked = format!("FIELD_{}", field_num);
+        
+        // Carefully escape the word for regex and wrap in word boundary markers
+        let escaped_word = regex::escape(&word);
+        
+        // Try to create and apply the regex, log any errors but continue processing
+        match Regex::new(&format!(r"(?i)\b{}\b", escaped_word)) {
+            Ok(re) => {
+                // Collect all matches and their replacements first
+                let mut replacements: Vec<(usize, usize, String)> = Vec::new();
+                
+                for m in re.find_iter(&masked_text) {
+                    let matched_word = &masked_text[m.start()..m.end()];
+                    let case_suffix = determine_case_suffix(matched_word);
+                    let case_masked = format!("{}{}", masked, case_suffix);
+                    replacements.push((m.start(), m.end(), case_masked));
                 }
+                
+                // Apply replacements in reverse order
+                for (start, end, replacement) in replacements.into_iter().rev() {
+                    masked_text.replace_range(start..end, &replacement);
+                }
+            },
+            Err(e) => {
+                // Log the error but continue with other words
+                console::log_1(&JsValue::from_str(&format!("Regex error for word '{}': {}", word, e)));
             }
         }
     }
@@ -137,25 +160,36 @@ pub fn decode_obfuscated_text(text: String, mask_words: &Set) -> String {
     let mut field_map = HashMap::new();
     let mut field_counter = 1;
     
-    // Convert the JS Set to a Vec of strings we can iterate
+    // Convert the JS Set to a Vec of strings we can sort
     let words: Array = Array::from(mask_words);
     let words_len = words.length();
+    let mut word_vec: Vec<(String, usize)> = Vec::new();
     
+    // Collect words into a Vec with their original indices
     for i in 0..words_len {
-        let word_val = words.get(i);
-        if let Some(word) = word_val.as_string() {
+        if let Some(word) = words.get(i).as_string() {
             if !word.is_empty() {
-                // Create all possible variants of the field with case information
-                let base_field = format!("FIELD_{}", field_counter);
-                
-                // Map each variant to the appropriate cased version of the word
-                field_map.insert(format!("{}_A", base_field), word.to_uppercase());
-                field_map.insert(format!("{}_F", base_field), capitalize_first(&word));
-                field_map.insert(base_field, word);
-                
-                field_counter += 1;
+                word_vec.push((word, i as usize));
             }
         }
+    }
+    
+    // Sort words by length in descending order, using original index as tiebreaker
+    word_vec.sort_by(|a, b| {
+        b.0.len().cmp(&a.0.len())
+            .then_with(|| a.1.cmp(&b.1))
+    });
+    
+    // Create field mappings
+    for (word, _) in word_vec {
+        let base_field = format!("FIELD_{}", field_counter);
+        
+        // Map each variant to the appropriate cased version of the word
+        field_map.insert(format!("{}_A", base_field), word.to_uppercase());
+        field_map.insert(format!("{}_F", base_field), capitalize_first(&word));
+        field_map.insert(base_field.clone(), word.clone());
+        
+        field_counter += 1;
     }
     
     // Replace all FIELD_X occurrences with their original words

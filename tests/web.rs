@@ -76,31 +76,32 @@ fn test_mask_text_empty_word() {
 
 #[wasm_bindgen_test]
 fn test_mask_text_with_fields_basic() {
-    // Create a test Set with words to mask
+    // Create a test Set with words to mask - email is longer than name, so it will be processed first
     let mask_words = Set::new(&JsValue::NULL);
     mask_words.add(&JsValue::from_str("name"));
     mask_words.add(&JsValue::from_str("email"));
     
     let input = "My name is John and my email is john@example.com.";
-    let expected = "My FIELD_1 is John and my FIELD_2 is john@example.com.";
+    let expected = "My FIELD_2 is John and my FIELD_1 is john@example.com.";
     
     let result = mask_text_with_fields(input.to_string(), &mask_words);
-    assert_eq!(result, expected, "Words should be replaced with FIELD_N format");
+    assert_eq!(result, expected, "Words should be replaced with FIELD_N format based on length order");
 }
 
 #[wasm_bindgen_test]
 fn test_mask_text_with_fields_incremental() {
-    // Test incremental field numbers
+    // Test incremental field numbers - words will be ordered by length
     let mask_words = Set::new(&JsValue::NULL);
-    mask_words.add(&JsValue::from_str("first"));
-    mask_words.add(&JsValue::from_str("second"));
-    mask_words.add(&JsValue::from_str("third"));
+    mask_words.add(&JsValue::from_str("first"));  // 5 chars
+    mask_words.add(&JsValue::from_str("second")); // 6 chars
+    mask_words.add(&JsValue::from_str("third"));  // 5 chars
     
+    // second (6 chars) gets FIELD_1, first/third (5 chars) get FIELD_2/FIELD_3 in order of appearance
     let input = "The first, second, and third items.";
-    let expected = "The FIELD_1, FIELD_2, and FIELD_3 items.";
+    let expected = "The FIELD_2, FIELD_1, and FIELD_3 items.";
     
     let result = mask_text_with_fields(input.to_string(), &mask_words);
-    assert_eq!(result, expected, "Field numbers should increment correctly");
+    assert_eq!(result, expected, "Field numbers should be assigned based on word length order, with same-length words keeping original order");
 }
 
 #[wasm_bindgen_test]
@@ -118,12 +119,13 @@ fn test_mask_text_with_fields_multiple_occurrences() {
 
 #[wasm_bindgen_test]
 fn test_decode_obfuscated_text_basic() {
-    // Create a test Set with words to decode
+    // Create a test Set with words to decode - email is longer so it will be processed first
     let mask_words = Set::new(&JsValue::NULL);
     mask_words.add(&JsValue::from_str("John"));
     mask_words.add(&JsValue::from_str("john@example.com"));
     
-    let input = "My FIELD_1 is FIELD_1 and my FIELD_2 is FIELD_2.";
+    // john@example.com (15 chars) gets FIELD_1, John (4 chars) gets FIELD_2
+    let input = "My FIELD_2 is FIELD_2 and my FIELD_1 is FIELD_1.";
     let expected = "My John is John and my john@example.com is john@example.com.";
     
     let result = decode_obfuscated_text(input.to_string(), &mask_words);
@@ -174,18 +176,19 @@ fn test_decode_obfuscated_text_empty_words() {
 #[wasm_bindgen_test]
 fn test_mask_and_decode_roundtrip() {
     // Test a full roundtrip: mask with fields and then decode
+    // 'password' (8 chars) and 'username' (8 chars) are same length
     let mask_words = Set::new(&JsValue::NULL);
     mask_words.add(&JsValue::from_str("username"));
     mask_words.add(&JsValue::from_str("password"));
     
     let original = "My username is admin and my password is 12345.";
     
-    // First mask the text
+    // First mask the text - both words are 8 chars, so order is preserved
     let masked = mask_text_with_fields(original.to_string(), &mask_words);
     assert_eq!(
         masked,
         "My FIELD_1 is admin and my FIELD_2 is 12345.",
-        "Text should be properly masked with fields"
+        "Text should be properly masked with fields based on word length order"
     );
     
     // Then decode it back
@@ -200,6 +203,7 @@ fn test_mask_and_decode_roundtrip() {
 #[wasm_bindgen_test]
 fn test_mask_and_decode_case_preservation() {
     // Test case preservation for different case patterns
+    // Words ordered by length: email (5), name (4), id (2)
     let mask_words = Set::new(&JsValue::NULL);
     mask_words.add(&JsValue::from_str("name"));
     mask_words.add(&JsValue::from_str("email"));
@@ -208,11 +212,12 @@ fn test_mask_and_decode_case_preservation() {
     let original = "My Name is john, my EMAIL is test@example.com, and my ID is ABC123.";
     
     // First mask the text - should include case information in fields
+    // email (5 chars) gets FIELD_1, name (4 chars) gets FIELD_2, id (2 chars) gets FIELD_3
     let masked = mask_text_with_fields(original.to_string(), &mask_words);
     assert_eq!(
         masked,
-        "My FIELD_1_F is john, my FIELD_2_A is test@example.com, and my FIELD_3_A is ABC123.",
-        "Text should be masked with case information preserved in field suffixes"
+        "My FIELD_2_F is john, my FIELD_1_A is test@example.com, and my FIELD_3_A is ABC123.",
+        "Text should be masked with case information preserved in field suffixes, ordered by word length"
     );
     
     // Then decode it back - should restore original casing
@@ -264,4 +269,23 @@ fn test_case_preservation_variations() {
     assert_eq!(decoded_lower, lowercase, "Should preserve lowercase");
     assert_eq!(decoded_title, titlecase, "Should preserve title case");
     assert_eq!(decoded_upper, uppercase, "Should preserve uppercase");
+}
+
+#[wasm_bindgen_test]
+fn test_mask_text_substring_words() {
+    // Test handling of words that are substrings of other words
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("bob"));
+    mask_words.add(&JsValue::from_str("bobby"));
+    
+    let input = "bob and bobby are different names";
+    let expected = "*** and ***** are different names";
+    
+    let result = mask_text(input.to_string(), &mask_words);
+    assert_eq!(result, expected, "Longer words containing shorter mask words should be masked correctly");
+
+    // Test with fields masking as well - bobby (5 chars) gets FIELD_1, bob (3 chars) gets FIELD_2
+    let result_fields = mask_text_with_fields(input.to_string(), &mask_words);
+    let expected_fields = "FIELD_2 and FIELD_1 are different names";
+    assert_eq!(result_fields, expected_fields, "Field masking should handle substring words correctly");
 }
