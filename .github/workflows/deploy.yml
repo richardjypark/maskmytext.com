@@ -52,6 +52,11 @@ jobs:
         working-directory: ./www
         run: pnpm install
 
+      # ─── Patch service worker version ────────────────────────────────────────────
+      - name: Update service worker cache version
+        run: |
+          sed -i "s/const CACHE_NAME = .*/const CACHE_NAME = \"mask-my-text-${GITHUB_SHA::8}\";/" www/service-worker.js
+
       # ─── Build & Test frontend ──────────────────────────────────────────────────
       - name: Cache Playwright browsers
         id: playwright-cache
