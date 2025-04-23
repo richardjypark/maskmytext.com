@@ -4,7 +4,8 @@
 /// in text with various replacement strategies and decoding masked text.
 
 use js_sys::{Array, Set};
-use regex::Regex;
+use regex::Regex as StdRegex;
+use fancy_regex::Regex;
 use std::collections::HashMap;
 use web_sys::console;
 use wasm_bindgen::JsValue;
@@ -49,10 +50,10 @@ fn set_to_sorted_vec(mask_words: &Set) -> Vec<(String, usize)> {
     word_vec
 }
 
-/// Creates a regex pattern for matching words with word boundaries.
+/// Creates a regex pattern that precisely matches words in various contexts.
 /// 
-/// The pattern is case-insensitive and uses word boundaries to prevent
-/// partial matches within larger words.
+/// Uses lookahead and lookbehind to match words in camelCase, snake_case,
+/// and other compound word formats, while maintaining proper word boundaries.
 /// 
 /// # Parameters
 /// 
@@ -60,10 +61,55 @@ fn set_to_sorted_vec(mask_words: &Set) -> Vec<(String, usize)> {
 /// 
 /// # Returns
 /// 
-/// A Result containing either the compiled Regex or an error
-fn create_word_boundary_regex(word: &str) -> Result<Regex, regex::Error> {
+/// A compiled Regex
+fn create_word_boundary_regex(word: &str) -> Regex {
     let escaped_word = regex::escape(word);
-    Regex::new(&format!(r"(?i)\b{}\b", escaped_word))
+    
+    // Pattern to match:
+    // 1. Complete standalone word (\bword\b)
+    // 2. Word as prefix (\bword(?=[A-Z_\-0-9]))
+    // 3. Word as suffix ((?<=[A-Z_\-0-9])word\b)
+    // 4. Word in the middle ((?<=[A-Z_\-0-9])word(?=[A-Z_\-0-9]))
+    let pattern = format!(
+        r"(?i)(?:\b{w}\b|\b{w}(?=[A-Z_\-\d])|(?<=[A-Z_\-\d]){w}\b|(?<=[A-Z_\-\d]){w}(?=[A-Z_\-\d]))",
+        w = escaped_word
+    );
+    
+    // Unwrap is safe here since the pattern is constructed programmatically
+    match Regex::new(&pattern) {
+        Ok(regex) => regex,
+        Err(e) => {
+            // Log error but provide a fallback pattern that will at least work for whole words
+            console::log_1(&JsValue::from_str(&format!("Error creating regex: {}", e)));
+            let fallback = format!(r"(?i)\b{}\b", escaped_word);
+            Regex::new(&fallback).unwrap_or_else(|_| {
+                // This should never happen given the simple pattern
+                Regex::new(r"$.^").unwrap() // Regex that never matches
+            })
+        }
+    }
+}
+
+/// Creates a simple regex pattern for exact text matching.
+/// 
+/// This is used for simple replacements where compound word detection
+/// is not needed, particularly in the decode function.
+/// 
+/// # Parameters
+/// 
+/// * `text` - The text to match exactly
+/// 
+/// # Returns
+/// 
+/// A compiled StdRegex
+fn create_exact_match_regex(text: &str) -> StdRegex {
+    let escaped_text = regex::escape(text);
+    // Unwrap is safe here since the pattern is constructed programmatically from a literal
+    StdRegex::new(&escaped_text).unwrap_or_else(|e| {
+        // Log error but provide a fallback pattern that will never match
+        console::log_1(&JsValue::from_str(&format!("Error creating regex: {}", e)));
+        StdRegex::new(r"$.^").unwrap() // Regex that never matches
+    })
 }
 
 /// Logs an error message to the JavaScript console.
@@ -74,6 +120,36 @@ fn create_word_boundary_regex(word: &str) -> Result<Regex, regex::Error> {
 #[inline]
 fn log_error(message: &str) {
     console::log_1(&JsValue::from_str(message));
+}
+
+/// Find all matches using fancy-regex and handle errors properly.
+/// 
+/// # Parameters
+/// 
+/// * `regex` - The fancy-regex to use
+/// * `text` - The text to search
+/// * `word` - The word being searched (for error reporting)
+/// 
+/// # Returns
+/// 
+/// A vector of match ranges (start, end)
+fn find_all_matches(regex: &Regex, text: &str, word: &str) -> Vec<(usize, usize)> {
+    let mut matches = Vec::new();
+    
+    // Try to find all matches
+    let iter_result = regex.find_iter(text);
+    for mtch in iter_result {
+        match mtch {
+            Ok(m) => {
+                matches.push((m.start(), m.end()));
+            },
+            Err(e) => {
+                log_error(&format!("Match error for word '{}': {}", word, e));
+            }
+        }
+    }
+    
+    matches
 }
 
 /// Masks specified words in text with asterisks.
@@ -114,13 +190,14 @@ pub fn mask_text(text: String, mask_words: &Set) -> String {
             .or_insert_with(|| "*".repeat(word_len))
             .clone();
         
-        // Create and apply the regex
-        match create_word_boundary_regex(&word) {
-            Ok(re) => {
-                masked_text = re.replace_all(&masked_text, &masked).to_string();
-            },
-            Err(e) => {
-                log_error(&format!("Regex error for word '{}': {}", word, e));
+        // Create regex and find all matches
+        let regex = create_word_boundary_regex(&word);
+        let matches = find_all_matches(&regex, &masked_text, &word);
+        
+        // Apply replacements in reverse order to prevent invalidating indices
+        if !matches.is_empty() {
+            for (start, end) in matches.into_iter().rev() {
+                masked_text.replace_range(start..end, &masked);
             }
         }
     }
@@ -131,7 +208,7 @@ pub fn mask_text(text: String, mask_words: &Set) -> String {
 /// Masks specified words in text with field placeholders.
 /// 
 /// Replaces words with FIELD_N placeholders, preserving case information
-/// with appropriate suffixes.
+/// with appropriate suffixes and maintaining any attached characters.
 /// 
 /// # Parameters
 /// 
@@ -165,45 +242,32 @@ pub fn mask_text_with_fields(text: String, mask_words: &Set) -> String {
     
     // Process words in sorted order
     for (word, _) in word_vec {
-        // Skip empty words
-        if word.is_empty() {
-            continue;
-        }
-        
+        // Ensure proper handling of case and structure
         let field_num = word_to_field.get(&word).unwrap_or(&0);
         if *field_num == 0 {
             log_error(&format!("Could not find field number for word '{}'", word));
             continue;
         }
         
-        let masked = format!("FIELD_{}", field_num);
+        let base_field = format!("FIELD_{}", field_num);
         
-        // Try to create and apply the regex
-        match create_word_boundary_regex(&word) {
-            Ok(re) => {
-                // Collect all matches and their replacements first
-                let mut replacements: Vec<(usize, usize, String)> = Vec::new();
-                
-                for m in re.find_iter(&masked_text) {
-                    let matched_word = &masked_text[m.start()..m.end()];
-                    let case_suffix = determine_case_suffix(matched_word);
-                    let case_masked = format!("{}{}", masked, case_suffix);
-                    replacements.push((m.start(), m.end(), case_masked));
-                }
-                
-                // Skip processing if no replacements needed
-                if replacements.is_empty() {
-                    continue;
-                }
-                
-                // Apply replacements in reverse order to prevent invalidating indices
-                for (start, end, replacement) in replacements.into_iter().rev() {
-                    masked_text.replace_range(start..end, &replacement);
-                }
-            },
-            Err(e) => {
-                log_error(&format!("Regex error for word '{}': {}", word, e));
-            }
+        // Create regex and find all matches
+        let regex = create_word_boundary_regex(&word);
+        let matches = find_all_matches(&regex, &masked_text, &word);
+        
+        // Process each match
+        let mut replacements = Vec::with_capacity(matches.len());
+        
+        for (start, end) in matches {
+            let matched_word = &masked_text[start..end];
+            let case_suffix = determine_case_suffix(matched_word);
+            let case_masked = format!("{}{}", base_field, case_suffix);
+            replacements.push((start, end, case_masked));
+        }
+        
+        // Apply replacements in reverse order to prevent invalidating indices
+        for (start, end, replacement) in replacements.into_iter().rev() {
+            masked_text.replace_range(start..end, &replacement);
         }
     }
     
@@ -271,24 +335,11 @@ pub fn decode_obfuscated_text(text: String, mask_words: &Set) -> String {
     let mut keys: Vec<_> = field_map.keys().collect();
     keys.sort_by(|a, b| b.len().cmp(&a.len()));
     
-    // Compile all regexes up front
-    let regexes: Vec<(String, Regex)> = keys
-        .into_iter()
-        .filter_map(|key| {
-            match Regex::new(&regex::escape(key)) {
-                Ok(re) => Some((key.clone(), re)),
-                Err(_) => {
-                    log_error(&format!("Regex error for field '{}'", key));
-                    None
-                }
-            }
-        })
-        .collect();
-    
     // Apply all regex replacements
-    for (key, re) in regexes {
-        if let Some(word) = field_map.get(&key) {
-            decoded_text = re.replace_all(&decoded_text, word).to_string();
+    for key in keys {
+        if let Some(word) = field_map.get(key) {
+            let regex = create_exact_match_regex(key);
+            decoded_text = regex.replace_all(&decoded_text, word).to_string();
         }
     }
     

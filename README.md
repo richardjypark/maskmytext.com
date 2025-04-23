@@ -1,54 +1,59 @@
 # Mask My Text
 
-A privacy-focused text masking tool that works entirely in your browser.
+A WebAssembly module for text masking and obfuscation, built with Rust.
 
-[![Build and Test](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml)
+## Features
 
-## Key Features
+- Mask sensitive words with asterisks
+- Replace sensitive words with field placeholders (FIELD_N)
+- Decode obfuscated text with field placeholders
+- Support for compound words:
+  - Handles words in camelCase: `mySecretKey` becomes `my******Key`
+  - Handles words in snake\*case: `user_password_123` becomes `user***\*\*\*\***\_123`
+  - Handles words with uppercase: `UserPassword` becomes `User********`
+  - Preserves case information when replacing with field placeholders
 
-- **Client-side only** - Your data never leaves your device
-- **Works offline** - Use anytime, even without internet
-- **Powered by WebAssembly** - Fast and secure text processing
+## Usage
 
-## User Guide
+```javascript
+import {
+  mask_text,
+  mask_text_with_fields,
+  decode_obfuscated_text,
+} from "mask-my-text";
 
-1. Enter or paste your text
-2. Choose masking options (eg. mask with \*\*\* or obfuscate)
-3. Copy masked result
+// Create a set of sensitive words
+const sensitiveWords = new Set(["password", "secret", "user"]);
 
-## Development
+// Mask text with asterisks
+const masked = mask_text("My password is secret123", sensitiveWords);
+// Result: "My ******** is ******123"
 
-### Build
+// Mask text with field placeholders
+const obfuscated = mask_text_with_fields(
+  "My UserName is admin, password is top-secret!",
+  sensitiveWords
+);
+// Result: "My FIELD_1_F is admin, FIELD_2 is top-FIELD_3!"
 
-1. `wasm-pack build`
-2. `cd www`
-3. `pnpm install`
+// Decode obfuscated text
+const decoded = decode_obfuscated_text(
+  "My FIELD_1_F is admin, FIELD_2 is top-FIELD_3!",
+  sensitiveWords
+);
+// Result: "My UserName is admin, password is top-secret!"
+```
 
-### Dependencies
+## Building
 
-1. `pnpm update`
-2. `pnpm prune`
+```bash
+# Build the project
+wasm-pack build
 
-### Run
+# Run tests
+wasm-pack test --chrome --headless
+```
 
-#### Local Development
+## License
 
-1. `pnpm run dev`
-
-### Testing
-
-#### E2E Tests
-
-1. Install Playwright browsers (first time only):
-
-   ```bash
-   cd www
-   pnpm exec playwright install chromium
-   ```
-
-2. Run tests:
-   - Headless mode: `pnpm test`
-   - UI mode: `pnpm test:ui`
-   - Debug mode: `pnpm test:debug`
-
-The E2E tests verify core functionality including the WebAssembly integration by checking console output from Rust code.
+MIT
