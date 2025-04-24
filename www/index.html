@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html data-theme="light" data-mask-mode="asterisks" class="loading">
   <head>
     <meta charset="utf-8" />
     <title>Mask My Text</title>
@@ -31,6 +31,9 @@
         // Set initial mask mode class
         const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
         document.documentElement.setAttribute("data-mask-mode", savedMaskMode);
+
+        // Remove loading class to show content
+        document.documentElement.classList.remove("loading");
 
         // Add initial-load class to prevent FOUC (Flash of Unstyled Content)
         document.documentElement.classList.add("initial-load");
@@ -212,6 +215,15 @@
 
       .theme-toggle:hover {
         background: var(--border-color);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        padding-left: 1rem; /* Adjust the padding value as needed */
       }
 
       h1 {
@@ -472,6 +484,26 @@
         }
         .decode-box {
           grid-template-columns: 1fr;
+        }
+
+        /* Mobile: keep header title and clear-button separate in two columns */
+        .mask-words-header,
+        .text-box-header {
+          display: grid;
+          grid-template-columns: 1fr auto; /* title on left, button on right */
+          column-gap: 0.5rem;
+          align-items: start; /* button stays top-aligned */
+        }
+
+        .mask-words-header h2,
+        .text-box-header h2 {
+          margin: 0; /* remove any extra margins */
+          min-width: 0; /* allow wrapping within column */
+        }
+
+        .mask-words-header button,
+        .text-box-header button {
+          margin: 0; /* ensure button sits inside its grid cell */
         }
       }
 
@@ -737,6 +769,57 @@
 
       html {
         overflow-y: scroll; /* Always show vertical scrollbar */
+      }
+
+      .loading .content-section {
+        display: none; /* Hide content sections initially */
+      }
+
+      .mask-words-header h2 {
+        text-align: left; /* Ensure the title is left-aligned */
+      }
+
+      /* Fix clear buttons so they stay inside their section on mobile */
+      @media (max-width: 768px) {
+        .mask-words-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        #words-heading {
+          min-width: 0; /* override the desktop-only min-width */
+          flex: 1; /* take up remaining space */
+        }
+        #clear-words-btn {
+          flex-shrink: 0; /* stay visible, don't shrink below content */
+        }
+
+        .text-box-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+        .text-box-header h2 {
+          min-width: 0; /* allow the heading to shrink on mobile */
+          flex: 1;
+        }
+        .text-box-header button {
+          flex-shrink: 0;
+        }
+      }
+
+      /* only vertically stack Input/Output headers on *very* narrow viewports */
+      @media (max-width: 360px) {
+        .text-box-header {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
       }
     </style>
   </head>
@@ -1063,6 +1146,8 @@
             decodeOutput.textContent = decodedText;
           }
         });
+
+        document.documentElement.classList.remove("loading");
       });
 
       // DOM Elements
