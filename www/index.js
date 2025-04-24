@@ -1,7 +1,5 @@
 import * as wasm from "mask-my-text";
 
-wasm.greet();
-
 export function maskText(text, maskWords) {
   const maskMode = localStorage.getItem("maskMode") || "asterisks";
   if (maskMode === "asterisks") {
