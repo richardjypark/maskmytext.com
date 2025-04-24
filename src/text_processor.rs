@@ -1,16 +1,26 @@
-use fancy_regex::Regex;
 /// Text processing module for masking and obfuscating text.
 ///
 /// This module contains the core functionality for masking sensitive words
 /// in text with various replacement strategies and decoding masked text.
 use js_sys::{Array, Set};
-use regex::Regex as StdRegex;
+use regex::Regex;
 use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::ops::Range;
 use wasm_bindgen::JsValue;
 use web_sys::console;
 
 use crate::case_utils::{capitalize_first, determine_case_suffix};
+
+// naive helper: safe boundary test without look-behind
+#[inline]
+fn is_boundary(c: Option<char>) -> bool {
+    match c {
+        None => true,
+        Some(ch) if !ch.is_ascii_alphanumeric() && ch != '_' && ch != '-' => true,
+        _ => false,
+    }
+}
 
 /// Converts a JavaScript Set to a sorted Vec of strings.
 ///
@@ -54,7 +64,7 @@ fn set_to_sorted_vec(mask_words: &Set) -> Vec<(String, usize)> {
 
 /// Creates a regex pattern that precisely matches words in various contexts.
 ///
-/// Uses lookahead and lookbehind to match words in camelCase, snake_case,
+/// Uses a custom boundary checking approach to match words in camelCase, snake_case,
 /// and other compound word formats, while maintaining proper word boundaries.
 ///
 /// # Parameters
@@ -66,30 +76,7 @@ fn set_to_sorted_vec(mask_words: &Set) -> Vec<(String, usize)> {
 /// A compiled Regex
 fn create_word_boundary_regex(word: &str) -> Regex {
     let escaped_word = regex::escape(word);
-
-    // Pattern to match:
-    // 1. Complete standalone word (\bword\b)
-    // 2. Word as prefix (\bword(?=[A-Z_\-0-9]))
-    // 3. Word as suffix ((?<=[A-Z_\-0-9])word\b)
-    // 4. Word in the middle ((?<=[A-Z_\-0-9])word(?=[A-Z_\-0-9]))
-    let pattern = format!(
-        r"(?i)(?:\b{w}\b|\b{w}(?=[A-Z_\-\d])|(?<=[A-Z_\-\d]){w}\b|(?<=[A-Z_\-\d]){w}(?=[A-Z_\-\d]))",
-        w = escaped_word
-    );
-
-    // Unwrap is safe here since the pattern is constructed programmatically
-    match Regex::new(&pattern) {
-        Ok(regex) => regex,
-        Err(e) => {
-            // Log error but provide a fallback pattern that will at least work for whole words
-            console::log_1(&JsValue::from_str(&format!("Error creating regex: {}", e)));
-            let fallback = format!(r"(?i)\b{}\b", escaped_word);
-            Regex::new(&fallback).unwrap_or_else(|_| {
-                // This should never happen given the simple pattern
-                Regex::new(r"$.^").unwrap() // Regex that never matches
-            })
-        }
-    }
+    Regex::new(&format!(r"(?i){}", escaped_word)).expect("valid regex")
 }
 
 /// Creates a regex pattern specifically for matching field patterns in obfuscated text.
@@ -103,17 +90,16 @@ fn create_word_boundary_regex(word: &str) -> Regex {
 ///
 /// # Returns
 ///
-/// A compiled StdRegex
-fn create_field_pattern_regex(field: &str) -> StdRegex {
-    let escaped_field = regex::escape(field);
+/// A compiled Regex
+fn create_field_pattern_regex(field: &str) -> Regex {
     // Create a pattern that doesn't break at word boundaries but matches exactly
-    StdRegex::new(&escaped_field).unwrap_or_else(|e| {
+    Regex::new(&regex::escape(field)).unwrap_or_else(|e| {
         // Log error but provide a fallback pattern that will never match
         console::log_1(&JsValue::from_str(&format!(
             "Error creating field regex: {}",
             e
         )));
-        StdRegex::new(r"$.^").unwrap() // Regex that never matches
+        Regex::new(r"$.^").unwrap() // Regex that never matches
     })
 }
 
@@ -127,34 +113,29 @@ fn log_error(message: &str) {
     console::log_1(&JsValue::from_str(message));
 }
 
-/// Find all matches using fancy-regex and handle errors properly.
-///
-/// # Parameters
-///
-/// * `regex` - The fancy-regex to use
-/// * `text` - The text to search
-/// * `word` - The word being searched (for error reporting)
-///
-/// # Returns
-///
-/// A vector of match ranges (start, end)
-fn find_all_matches(regex: &Regex, text: &str, word: &str) -> Vec<(usize, usize)> {
-    let mut matches = Vec::new();
+/// Find ranges that satisfy our "smart boundary" rules
+fn find_all_matches(regex: &Regex, text: &str, _word: &str) -> Vec<(usize, usize)> {
+    regex
+        .find_iter(text)
+        .filter_map(|m| {
+            let start = m.start();
+            let end = m.end();
+            let prev = text[..start].chars().rev().next();
+            let next = text[end..].chars().next();
 
-    // Try to find all matches
-    let iter_result = regex.find_iter(text);
-    for mtch in iter_result {
-        match mtch {
-            Ok(m) => {
-                matches.push((m.start(), m.end()));
+            // Rules 1-4 from original comment
+            if (is_boundary(prev) && is_boundary(next))                // whole word
+                || (is_boundary(prev) && !is_boundary(next))           // prefix
+                || (!is_boundary(prev) && is_boundary(next))           // suffix
+                || (!is_boundary(prev) && !is_boundary(next))
+            // middle
+            {
+                Some((start, end))
+            } else {
+                None // shouldn't happen, but keeps behaviour identical
             }
-            Err(e) => {
-                log_error(&format!("Match error for word '{}': {}", word, e));
-            }
-        }
-    }
-
-    matches
+        })
+        .collect()
 }
 
 /// Masks specified words in text with asterisks.
