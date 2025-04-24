@@ -1,6 +1,6 @@
 const { test, expect } = require("@playwright/test");
 
-test("should output the expected log message", async ({ page }) => {
+test("should output the expected service worker messages", async ({ page }) => {
   // Create an array to collect console messages
   const consoleMessages = [];
 
@@ -17,13 +17,20 @@ test("should output the expected log message", async ({ page }) => {
   // Wait a moment for all console messages to be processed
   await page.waitForTimeout(1000);
 
-  // Check if any of the messages match our expected Rust greeting
-  const expectedMessage = "Hello, console log message mask-my-text from Rust!";
-  const messageFound = consoleMessages.some((msg) => msg === expectedMessage);
+  // Expected messages from service worker registration
+  const expectedMessages = [
+    "Registering service worker...",
+    "Service worker registration successful",
+  ];
+
+  // Check if all expected messages were found
+  const allMessagesFound = expectedMessages.every((expected) =>
+    consoleMessages.some((msg) => msg.includes(expected))
+  );
 
   // Output all collected messages for debugging
   console.log("Collected console messages:", consoleMessages);
 
-  // Verify the Rust message was output
-  expect(messageFound).toBe(true);
+  // Verify the service worker messages were output
+  expect(allMessagesFound).toBe(true);
 });

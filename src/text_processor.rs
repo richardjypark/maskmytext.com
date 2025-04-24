@@ -6,7 +6,6 @@ use js_sys::{Array, Set};
 use regex::Regex;
 use std::cmp::Reverse;
 use std::collections::HashMap;
-use std::ops::Range;
 use wasm_bindgen::JsValue;
 use web_sys::console;
 
@@ -120,7 +119,7 @@ fn find_all_matches(regex: &Regex, text: &str, _word: &str) -> Vec<(usize, usize
         .filter_map(|m| {
             let start = m.start();
             let end = m.end();
-            let prev = text[..start].chars().rev().next();
+            let prev = text[..start].chars().next_back();
             let next = text[end..].chars().next();
 
             // Rules 1-4 from original comment

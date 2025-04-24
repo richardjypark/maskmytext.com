@@ -8,26 +8,9 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_test::*;
 
 // Import functions from our crate
-use mask_my_text::{decode_obfuscated_text, greet, mask_text, mask_text_with_fields};
+use mask_my_text::{decode_obfuscated_text, mask_text, mask_text_with_fields};
 
 wasm_bindgen_test_configure!(run_in_browser);
-
-#[wasm_bindgen_test]
-fn test_greet() {
-    // Call greet and verify the exact message
-    let result = greet();
-    assert_eq!(
-        result, "Hello, console log message mask-my-text from Rust!",
-        "Greeting message should match expected text"
-    );
-}
-
-#[wasm_bindgen_test]
-fn test_greet_not_empty() {
-    // Additional test to verify message is not empty
-    let result = greet();
-    assert!(!result.is_empty(), "Greeting message should not be empty");
-}
 
 #[wasm_bindgen_test]
 fn test_mask_text_basic() {

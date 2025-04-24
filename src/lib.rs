@@ -4,26 +4,8 @@ mod utils;
 
 use js_sys::Set;
 use wasm_bindgen::prelude::*;
-use web_sys::console;
 
 pub use case_utils::{capitalize_first, determine_case_suffix};
-
-/// A WebAssembly module for text masking and obfuscation.
-///
-/// This library provides functions for masking sensitive words in text with
-/// asterisks or field placeholders, and for decoding obfuscated text.
-/// Returns a greeting message, primarily used to test that the WASM module loaded properly.
-///
-/// # Returns
-///
-/// A String containing the greeting message.
-#[wasm_bindgen]
-pub fn greet() -> String {
-    let message = "Hello, console log message mask-my-text from Rust!";
-    // Log for visual feedback
-    console::log_1(&JsValue::from_str(message));
-    message.to_string()
-}
 
 /// Masks specified words in text with asterisks.
 ///
