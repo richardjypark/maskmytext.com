@@ -4,25 +4,5 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-      day: monday
       time: "08:00"
     open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "rust"
-
-  - package-ecosystem: npm
-    directory: "/www"
-    schedule:
-      interval: weekly
-      day: monday
-      time: "08:00"
-    open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "javascript"
-    versioning-strategy: increase
-    groups:
-      dev-dependencies:
-        patterns:
-          - "*"
