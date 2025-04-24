@@ -513,7 +513,7 @@ fn test_roundtrip_compound_words() {
     let result = decode_obfuscated_text(masked, &mask_words);
 
     // Update expected to match what our implementation actually produces
-    let expected = "apiKey: my_SecretIELD_2, API_SECRET, secretValue";
+    let expected = "apiKey: my_secret_token, API_SECRET, secretValue";
 
     // Use this for the assertion
     assert_eq!(
@@ -556,7 +556,9 @@ fn test_mask_decode_compound_underscore() {
 
     // Test underscore variations
     let original = "my_user_token api_token_key user_api_config";
-    let expected_decoded = "my_UserIELD_1 ApiIELD_1_key UserIELD_3_config";
+
+    // Updated expected value to match actual implementation output
+    let expected_decoded = "my_user_token api_token_key user_api_config";
 
     // First mask the text
     let masked = mask_text_with_fields(original.to_string(), &mask_words);
@@ -582,7 +584,9 @@ fn test_mask_decode_mixed_compound_patterns() {
 
     // Test mixed camelCase and underscore patterns
     let original = "myUserToken_api user_apiToken API_TOKEN_KEY";
-    let expected_decoded = "myUserToken_api UserIELD_3Token API_TOKEN_KEY";
+
+    // Updated expected value to match actual implementation output
+    let expected_decoded = "myUserToken_api user_apiToken API_TOKEN_KEY";
 
     // First mask the text
     let masked = mask_text_with_fields(original.to_string(), &mask_words);
@@ -607,7 +611,9 @@ fn test_mask_decode_compound_case_preservation() {
 
     // Test case preservation in compound words
     let input = "myUserApi USER_API_KEY user_api_config UserApiToken";
-    let expected_decoded = "myUserApi USER_API_KEY UserIELD_2_config UserApiToken";
+
+    // Updated expected value to match actual implementation output
+    let expected_decoded = "myUserApi USER_API_KEY user_api_config UserApiToken";
 
     // First mask the text
     let masked = mask_text_with_fields(input.to_string(), &mask_words);
@@ -622,5 +628,43 @@ fn test_mask_decode_compound_case_preservation() {
     assert_eq!(
         decoded, expected_decoded,
         "Case should be preserved after decoding compound words"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_mask_decode_single_letter_components() {
+    // Test single letter masking and decoding in compound structures
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("a"));
+    mask_words.add(&JsValue::from_str("b"));
+
+    // Test simple single-letter compound words
+    let input = "a_b ab a-b";
+
+    // First mask the text
+    let masked = mask_text_with_fields(input.to_string(), &mask_words);
+    assert_eq!(
+        masked, "FIELD_1_FIELD_2 FIELD_1FIELD_2 FIELD_1-FIELD_2",
+        "Single letter components should be properly masked with fields"
+    );
+
+    // Then decode it back
+    let decoded = decode_obfuscated_text(masked, &mask_words);
+    assert_eq!(
+        decoded, input,
+        "Decoded text should match the original text with single letter components"
+    );
+
+    // Test mixed case single letters
+    let input_mixed_case = "A_B Ab a-B";
+
+    // Mask with fields
+    let masked_mixed_case = mask_text_with_fields(input_mixed_case.to_string(), &mask_words);
+
+    // Then decode it back
+    let decoded_mixed_case = decode_obfuscated_text(masked_mixed_case, &mask_words);
+    assert_eq!(
+        decoded_mixed_case, input_mixed_case,
+        "Decoded text should preserve case of single letter components"
     );
 }

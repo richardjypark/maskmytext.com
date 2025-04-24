@@ -31,12 +31,17 @@ fn set_to_sorted_vec(mask_words: &Set) -> Vec<(String, usize)> {
     }
 
     let mut word_vec: Vec<(String, usize)> = Vec::with_capacity(words_len as usize);
+    let mut seen_lowercase: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    // Collect words into a Vec with their original indices
+    // Collect words into a Vec with their original indices, deduplicated case-insensitively
     for i in 0..words_len {
         if let Some(word) = words.get(i).as_string() {
             if !word.is_empty() {
-                word_vec.push((word, i as usize));
+                let lower = word.to_lowercase();
+                // skip if we've already seen this lowercase word
+                if seen_lowercase.insert(lower) {
+                    word_vec.push((word, i as usize));
+                }
             }
         }
     }
@@ -87,24 +92,27 @@ fn create_word_boundary_regex(word: &str) -> Regex {
     }
 }
 
-/// Creates a simple regex pattern for exact text matching.
+/// Creates a regex pattern specifically for matching field patterns in obfuscated text.
 ///
-/// This is used for simple replacements where compound word detection
-/// is not needed, particularly in the decode function.
+/// This function handles the special case of adjacent field patterns that may occur
+/// when decoding compound words with multiple masked parts.
 ///
 /// # Parameters
 ///
-/// * `text` - The text to match exactly
+/// * `field` - The field pattern to match
 ///
 /// # Returns
 ///
 /// A compiled StdRegex
-fn create_exact_match_regex(text: &str) -> StdRegex {
-    let escaped_text = regex::escape(text);
-    // Unwrap is safe here since the pattern is constructed programmatically from a literal
-    StdRegex::new(&escaped_text).unwrap_or_else(|e| {
+fn create_field_pattern_regex(field: &str) -> StdRegex {
+    let escaped_field = regex::escape(field);
+    // Create a pattern that doesn't break at word boundaries but matches exactly
+    StdRegex::new(&escaped_field).unwrap_or_else(|e| {
         // Log error but provide a fallback pattern that will never match
-        console::log_1(&JsValue::from_str(&format!("Error creating regex: {}", e)));
+        console::log_1(&JsValue::from_str(&format!(
+            "Error creating field regex: {}",
+            e
+        )));
         StdRegex::new(r"$.^").unwrap() // Regex that never matches
     })
 }
@@ -328,17 +336,204 @@ pub fn decode_obfuscated_text(text: String, mask_words: &Set) -> String {
         return text;
     }
 
-    // Replace all FIELD_X occurrences with their original words
+    // First we'll create a complete mapping of all possible field patterns to their replacement words
+    let mut complete_field_map = HashMap::new();
+
+    // Add basic field patterns from field_map
+    for (field, word) in &field_map {
+        complete_field_map.insert(field.clone(), word.clone());
+    }
+
+    // Get all possible field numbers
+    let field_numbers: Vec<usize> = (1..=field_map.len() / 3).collect();
+
+    // Add compound patterns with underscore
+    for i in &field_numbers {
+        for j in &field_numbers {
+            // Regular to regular
+            let pattern = format!("FIELD_{}_FIELD_{}", i, j);
+            let base_word_i = field_map
+                .get(&format!("FIELD_{}", i))
+                .unwrap_or(&String::new())
+                .clone();
+            let base_word_j = field_map
+                .get(&format!("FIELD_{}", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern.clone(), format!("{}_{}", base_word_i, base_word_j));
+
+            // Regular to uppercase
+            let pattern_ua = format!("FIELD_{}_FIELD_{}_A", i, j);
+            let upper_word_j = field_map
+                .get(&format!("FIELD_{}_A", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_ua, format!("{}_{}", base_word_i, upper_word_j));
+
+            // Regular to titlecase
+            let pattern_uf = format!("FIELD_{}_FIELD_{}_F", i, j);
+            let title_word_j = field_map
+                .get(&format!("FIELD_{}_F", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_uf, format!("{}_{}", base_word_i, title_word_j));
+
+            // Uppercase to regular
+            let pattern_au = format!("FIELD_{}_A_FIELD_{}", i, j);
+            let upper_word_i = field_map
+                .get(&format!("FIELD_{}_A", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_au, format!("{}_{}", upper_word_i, base_word_j));
+
+            // Uppercase to uppercase
+            let pattern_aa = format!("FIELD_{}_A_FIELD_{}_A", i, j);
+            complete_field_map.insert(pattern_aa, format!("{}_{}", upper_word_i, upper_word_j));
+
+            // Uppercase to titlecase
+            let pattern_af = format!("FIELD_{}_A_FIELD_{}_F", i, j);
+            complete_field_map.insert(pattern_af, format!("{}_{}", upper_word_i, title_word_j));
+
+            // Titlecase to regular
+            let pattern_fu = format!("FIELD_{}_F_FIELD_{}", i, j);
+            let title_word_i = field_map
+                .get(&format!("FIELD_{}_F", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_fu, format!("{}_{}", title_word_i, base_word_j));
+
+            // Titlecase to uppercase
+            let pattern_fa = format!("FIELD_{}_F_FIELD_{}_A", i, j);
+            complete_field_map.insert(pattern_fa, format!("{}_{}", title_word_i, upper_word_j));
+
+            // Titlecase to titlecase
+            let pattern_ff = format!("FIELD_{}_F_FIELD_{}_F", i, j);
+            complete_field_map.insert(pattern_ff, format!("{}_{}", title_word_i, title_word_j));
+        }
+    }
+
+    // Add direct adjacency patterns (no underscore)
+    for i in &field_numbers {
+        for j in &field_numbers {
+            // Regular to regular
+            let pattern = format!("FIELD_{}FIELD_{}", i, j);
+            let base_word_i = field_map
+                .get(&format!("FIELD_{}", i))
+                .unwrap_or(&String::new())
+                .clone();
+            let base_word_j = field_map
+                .get(&format!("FIELD_{}", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern.clone(), format!("{}{}", base_word_i, base_word_j));
+
+            // Regular to uppercase
+            let pattern_ua = format!("FIELD_{}FIELD_{}_A", i, j);
+            let upper_word_j = field_map
+                .get(&format!("FIELD_{}_A", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_ua, format!("{}{}", base_word_i, upper_word_j));
+
+            // Regular to titlecase
+            let pattern_uf = format!("FIELD_{}FIELD_{}_F", i, j);
+            let title_word_j = field_map
+                .get(&format!("FIELD_{}_F", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_uf, format!("{}{}", base_word_i, title_word_j));
+
+            // Uppercase to regular
+            let pattern_au = format!("FIELD_{}_AFIELD_{}", i, j);
+            let upper_word_i = field_map
+                .get(&format!("FIELD_{}_A", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_au, format!("{}{}", upper_word_i, base_word_j));
+
+            // Uppercase to uppercase
+            let pattern_aa = format!("FIELD_{}_AFIELD_{}_A", i, j);
+            complete_field_map.insert(pattern_aa, format!("{}{}", upper_word_i, upper_word_j));
+
+            // Uppercase to titlecase
+            let pattern_af = format!("FIELD_{}_AFIELD_{}_F", i, j);
+            complete_field_map.insert(pattern_af, format!("{}{}", upper_word_i, title_word_j));
+
+            // Titlecase to regular
+            let pattern_fu = format!("FIELD_{}_FFIELD_{}", i, j);
+            let title_word_i = field_map
+                .get(&format!("FIELD_{}_F", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_fu, format!("{}{}", title_word_i, base_word_j));
+
+            // Titlecase to uppercase
+            let pattern_fa = format!("FIELD_{}_FFIELD_{}_A", i, j);
+            complete_field_map.insert(pattern_fa, format!("{}{}", title_word_i, upper_word_j));
+
+            // Titlecase to titlecase
+            let pattern_ff = format!("FIELD_{}_FFIELD_{}_F", i, j);
+            complete_field_map.insert(pattern_ff, format!("{}{}", title_word_i, title_word_j));
+        }
+    }
+
+    // Add hyphen patterns
+    for i in &field_numbers {
+        for j in &field_numbers {
+            // Regular to regular
+            let pattern = format!("FIELD_{}-FIELD_{}", i, j);
+            let base_word_i = field_map
+                .get(&format!("FIELD_{}", i))
+                .unwrap_or(&String::new())
+                .clone();
+            let base_word_j = field_map
+                .get(&format!("FIELD_{}", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern.clone(), format!("{}-{}", base_word_i, base_word_j));
+
+            // Other combinations with hyphen following similar pattern as with underscore
+            let pattern_ua = format!("FIELD_{}-FIELD_{}_A", i, j);
+            let upper_word_j = field_map
+                .get(&format!("FIELD_{}_A", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_ua, format!("{}-{}", base_word_i, upper_word_j));
+
+            let pattern_uf = format!("FIELD_{}-FIELD_{}_F", i, j);
+            let title_word_j = field_map
+                .get(&format!("FIELD_{}_F", j))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_uf, format!("{}-{}", base_word_i, title_word_j));
+
+            let pattern_au = format!("FIELD_{}_A-FIELD_{}", i, j);
+            let upper_word_i = field_map
+                .get(&format!("FIELD_{}_A", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_au, format!("{}-{}", upper_word_i, base_word_j));
+
+            let pattern_fu = format!("FIELD_{}_F-FIELD_{}", i, j);
+            let title_word_i = field_map
+                .get(&format!("FIELD_{}_F", i))
+                .unwrap_or(&String::new())
+                .clone();
+            complete_field_map.insert(pattern_fu, format!("{}-{}", title_word_i, base_word_j));
+        }
+    }
+
+    // Replace all field patterns with their original words
     let mut decoded_text = text;
 
-    // Sort keys by length in descending order to match the most specific patterns first
-    let mut keys: Vec<_> = field_map.keys().collect();
+    // Process patterns from longest to shortest to avoid substring conflicts
+    let mut keys: Vec<_> = complete_field_map.keys().collect();
     keys.sort_by_key(|b| Reverse(b.len()));
 
-    // Apply all regex replacements
+    // Apply all replacements
     for key in keys {
-        if let Some(word) = field_map.get(key) {
-            let regex = create_exact_match_regex(key);
+        if let Some(word) = complete_field_map.get(key) {
+            let regex = create_field_pattern_regex(key);
             decoded_text = regex.replace_all(&decoded_text, word).to_string();
         }
     }
