@@ -32,11 +32,10 @@
         const savedMaskMode = localStorage.getItem("maskMode") || "asterisks";
         document.documentElement.setAttribute("data-mask-mode", savedMaskMode);
 
-        // Remove loading class to show content
-        document.documentElement.classList.remove("loading");
-
         // Add initial-load class to prevent FOUC (Flash of Unstyled Content)
         document.documentElement.classList.add("initial-load");
+        // Remove loading class to show content
+        document.documentElement.classList.remove("loading");
       })();
     </script>
     <style>
