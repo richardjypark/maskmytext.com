@@ -1,65 +1,48 @@
 # Mask My Text
 
-A WebAssembly module for text masking and obfuscation, built with Rust.
+[![Build, Test, and Deploy](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml/badge.svg?branch=master)](https://github.com/richardjypark/maskmytext.com/actions/workflows/deploy.yml)
 
-## Features
+A privacy-focused text masking tool that works entirely in your browser. Uses WebAssembly and Rust.
 
-- Mask sensitive words with asterisks
-- Replace sensitive words with field placeholders (FIELD_N)
-- Decode obfuscated text with field placeholders
-- Support for compound words:
-  - Handles camelCase: `mySecretKey` → `my******Key`
-  - Handles snake\*case: `user_password_123` → `user***\*\*\*\***\_123`
-  - Handles hyphen-case: `user-password-123` → `user-********-123`
-  - Handles uppercase words: `UserPassword` → `User********`
-  - Preserves case information when using field placeholders
+![Mask My Text](maskmytext.gif)
 
-## Usage
+## Development Setup
 
-```javascript
-import {
-  mask_text,
-  mask_text_with_fields,
-  decode_obfuscated_text,
-} from "mask-my-text";
+1. **Clone the repository:**
 
-// Define sensitive words
-const sensitiveWords = new Set(["password", "secret", "user"]);
+   ```bash
+   git clone https://github.com/richardjypark/maskmytext.com.git
+   cd maskmytext.com
+   ```
 
-// 1) Mask with asterisks
-const masked = mask_text("My password is secret123", sensitiveWords);
-// => "My ******** is ******123"
+2. **Install dependencies:**
 
-// 2) Mask with field placeholders
-const obfuscated = mask_text_with_fields(
-  "My UserName is admin, password is top-secret!",
-  sensitiveWords
-);
-// => "My FIELD_1_F is admin, FIELD_2 is top-FIELD_3!"
+   ```bash
+   wasm-pack build
+   ```
 
-// 3) Compound words
-const maskedCompound = mask_text(
-  "my user_password_123 and user-password-123",
-  sensitiveWords
-);
-// => "my user_********_123 and user-********-123"
+   ```bash
+   cd www
+   pnpm install
+   ```
 
-// 4) Decode back to original text
-const decoded = decode_obfuscated_text(
-  "My FIELD_1_F is admin, FIELD_2 is top-FIELD_3!",
-  sensitiveWords
-);
-// => "My UserName is admin, password is top-secret!"
-```
+3. **Run the project:**
 
-## Building
+   ```bash
+   pnpm run dev
+   ```
+
+## Testing
+
+To run tests, use the following command:
 
 ```bash
-# Build the project
-wasm-pack build
+wasm-pack test --headless --chrome
+```
 
-# Run tests
-wasm-pack test --chrome --headless
+```bash
+cd www
+pnpm test
 ```
 
 ## License
