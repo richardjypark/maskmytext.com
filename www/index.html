@@ -233,7 +233,7 @@
 
       .content {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 2rem;
         width: 100%;
         position: relative;
@@ -250,7 +250,7 @@
 
       .decode-box {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 2rem;
       }
 
@@ -305,6 +305,8 @@
         width: 100%;
         box-sizing: border-box;
         position: relative;
+        min-width: 0;
+        overflow: hidden;
       }
 
       .text-box-header {
@@ -429,6 +431,10 @@
         border: 1px solid var(--border-color);
         position: relative;
         text-align: left;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
       }
 
       #output:empty::before {
