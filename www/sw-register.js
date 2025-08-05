@@ -29,11 +29,12 @@ function handleServiceWorkerUpdate(registration) {
 
 /**
  * Handles page refresh when service worker takes control
+ * @param {boolean} shouldReload - Whether to reload the page when the controller changes
  */
-function handleControllerChange() {
+function handleControllerChange(shouldReload) {
   let refreshing = false;
   navigator.serviceWorker.addEventListener(SW_EVENTS.CONTROLLER_CHANGE, () => {
-    if (!refreshing) {
+    if (shouldReload && !refreshing) {
       console.log(SW_LOGS.CONTROLLER_CHANGED);
       window.location.reload();
       refreshing = true;
@@ -53,13 +54,16 @@ export async function registerServiceWorker() {
   try {
     console.log(SW_LOGS.REGISTRATION_START);
 
+    // Determine if this page was already controlled by a service worker
+    const hadController = Boolean(navigator.serviceWorker.controller);
+
     const registration = await navigator.serviceWorker.register(
       SW_PATHS.SCRIPT
     );
     console.log(SW_LOGS.REGISTRATION_SUCCESS);
 
     handleServiceWorkerUpdate(registration);
-    handleControllerChange();
+    handleControllerChange(hadController);
 
     return registration;
   } catch (error) {
