@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 /// Text processing module for masking and obfuscating text.
 ///
 /// This module contains the core functionality for masking sensitive words
