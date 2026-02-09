@@ -1,27 +1,28 @@
 const CACHE_NAME = "mask-my-text-v4";
+const MAX_RUNTIME_ENTRIES = 100;
 
 const BASE_PATH = (() => {
   const hostname = location.hostname;
   const pathname = self.location.pathname;
 
   if (hostname === "maskmytext.com" || hostname === "www.maskmytext.com") {
-    return ""; // Root path for production domain
+    return "";
   }
 
-  // For GitHub Pages or other hosting with path prefix
   if (pathname.includes("/maskmytext.com/")) {
     return "/maskmytext.com";
   }
 
-  return ""; // Local development or other scenarios
+  return "";
 })();
 
-const ASSETS_TO_CACHE = [
+const APP_SHELL_PATHS = [
   `${BASE_PATH}/`,
   `${BASE_PATH}/index.html`,
   `${BASE_PATH}/bootstrap.js`,
-  `${BASE_PATH}/index.js`,
+  `${BASE_PATH}/app-init.js`,
   `${BASE_PATH}/manifest.json`,
+  `${BASE_PATH}/styles/main.css`,
   `${BASE_PATH}/icons/icon-192x192.png`,
   `${BASE_PATH}/icons/icon-512x512.png`,
   `${BASE_PATH}/pkg/mask_my_text_bg.wasm`,
@@ -29,19 +30,23 @@ const ASSETS_TO_CACHE = [
   `${BASE_PATH}/pkg/mask_my_text_bg.js`,
 ];
 
-/**
- * Attempts to cache all assets, falling back to individual caching on failure
- * @param {Cache} cache
- * @returns {Promise<void>}
- */
+const CACHEABLE_EXTENSIONS = new Set([
+  ".html",
+  ".js",
+  ".css",
+  ".wasm",
+  ".json",
+  ".png",
+  ".svg",
+]);
+
 async function cacheAssets(cache) {
   try {
-    await cache.addAll(ASSETS_TO_CACHE);
+    await cache.addAll(APP_SHELL_PATHS);
   } catch (error) {
     console.error("Cache addAll failed:", error);
-    // Attempt to cache files individually
     await Promise.allSettled(
-      ASSETS_TO_CACHE.map((url) =>
+      APP_SHELL_PATHS.map((url) =>
         cache
           .add(url)
           .catch((err) => console.error("Failed to cache:", url, err))
@@ -50,36 +55,25 @@ async function cacheAssets(cache) {
   }
 }
 
-/**
- * Cleans up old caches and problematic URLs
- * @param {string} currentCache
- * @returns {Promise<void>}
- */
 async function cleanupCaches(currentCache) {
   const cacheNames = await caches.keys();
-  await Promise.all([
-    // Delete old caches
-    ...cacheNames
+  await Promise.all(
+    cacheNames
       .filter((name) => name !== currentCache)
-      .map((name) => caches.delete(name)),
+      .map((name) => caches.delete(name))
+  );
 
-    // Clean problematic URLs from current cache
-    caches.open(currentCache).then(async (cache) => {
-      const requests = await cache.keys();
-      return Promise.all(
-        requests
-          .filter((request) =>
-            request.url.includes("/maskmytext.com/maskmytext.com/")
-          )
-          .map((request) => cache.delete(request))
-      );
-    }),
-  ]);
+  const cache = await caches.open(currentCache);
+  const requests = await cache.keys();
+  await Promise.all(
+    requests
+      .filter((request) =>
+        request.url.includes("/maskmytext.com/maskmytext.com/")
+      )
+      .map((request) => cache.delete(request))
+  );
 }
 
-/**
- * Notifies all clients about cache updates
- */
 async function notifyClients() {
   const clients = await self.clients.matchAll();
   await Promise.all(
@@ -92,30 +86,70 @@ async function notifyClients() {
   );
 }
 
-// Install event - cache assets
+function isCacheableRequest(request) {
+  if (request.method !== "GET") {
+    return false;
+  }
+
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+
+  if (url.pathname.endsWith("/")) {
+    return true;
+  }
+
+  for (const extension of CACHEABLE_EXTENSIONS) {
+    if (url.pathname.endsWith(extension)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function pruneRuntimeCache(cache) {
+  const requests = await cache.keys();
+  if (requests.length <= MAX_RUNTIME_ENTRIES) {
+    return;
+  }
+
+  const excessEntries = requests.length - MAX_RUNTIME_ENTRIES;
+  const toDelete = requests.slice(0, excessEntries);
+  await Promise.all(toDelete.map((request) => cache.delete(request)));
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then(cacheAssets));
+  self.skipWaiting();
 });
 
-// Activate event - cleanup and take control
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    Promise.all([cleanupCaches(CACHE_NAME), notifyClients(), clients.claim()])
+    Promise.all([cleanupCaches(CACHE_NAME), notifyClients(), self.clients.claim()])
   );
 });
 
-// Message event - handle skip waiting
 self.addEventListener("message", (event) => {
   if (event.data?.action === "skipWaiting") {
     self.skipWaiting();
   }
 });
 
-// Fetch event - serve from cache or network
 self.addEventListener("fetch", (event) => {
-  // Navigation fallback
   if (event.request.mode === "navigate") {
-    event.respondWith(fetch(event.request).catch(() => caches.match("/")));
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const prefixedFallback = await caches.match(`${BASE_PATH}/`);
+        if (prefixedFallback) {
+          return prefixedFallback;
+        }
+
+        return caches.match("/");
+      })
+    );
     return;
   }
 
@@ -128,15 +162,16 @@ self.addEventListener("fetch", (event) => {
       try {
         const response = await fetch(event.request);
 
-        // Only cache valid responses
-        if (!response || response.status !== 200 || response.type !== "basic") {
-          return response;
+        if (
+          response &&
+          response.status === 200 &&
+          response.type === "basic" &&
+          isCacheableRequest(event.request)
+        ) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
+          await pruneRuntimeCache(cache);
         }
-
-        // Clone and cache the response
-        const responseToCache = response.clone();
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put(event.request, responseToCache);
 
         return response;
       } catch (error) {

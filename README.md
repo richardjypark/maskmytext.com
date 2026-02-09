@@ -18,6 +18,10 @@ A privacy-focused text masking tool that works entirely in your browser. Uses We
 2. **Install dependencies:**
 
    ```bash
+   rustup target add wasm32-unknown-unknown
+   ```
+
+   ```bash
    wasm-pack build
    ```
 
@@ -43,6 +47,20 @@ wasm-pack test --headless --chrome
 ```bash
 cd www
 pnpm test
+```
+
+Run only frontend unit tests:
+
+```bash
+cd www
+pnpm run test:unit
+```
+
+Run only Playwright end-to-end tests:
+
+```bash
+cd www
+pnpm run test:e2e
 ```
 
 ## Deployment

@@ -651,3 +651,65 @@ fn test_mask_decode_single_letter_components() {
         "Decoded text should preserve case of single letter components"
     );
 }
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_unknown_fields_unchanged() {
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("secret"));
+
+    let input = "Known FIELD_1 and unknown FIELD_99 and FIELD_100_A";
+    let expected = "Known secret and unknown FIELD_99 and FIELD_100_A";
+
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(
+        result, expected,
+        "Unknown field numbers should remain unchanged"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_numeric_suffix_after_field() {
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("password"));
+
+    let input = "FIELD_1123";
+    let expected = "password123";
+
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(
+        result, expected,
+        "Decoder should preserve trailing literal digits after a valid field id"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_preserves_f_suffix_before_literal_ield() {
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("secret"));
+
+    let input = "FIELD_1_FIELD_data";
+    let expected = "SecretIELD_data";
+
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(
+        result, expected,
+        "Decoder should keep _F case suffix when following text is not a decodable field token"
+    );
+}
+
+#[wasm_bindgen_test]
+fn test_decode_obfuscated_text_adjacent_field_chains() {
+    let mask_words = Set::new(&JsValue::NULL);
+    mask_words.add(&JsValue::from_str("a"));
+    mask_words.add(&JsValue::from_str("b"));
+    mask_words.add(&JsValue::from_str("c"));
+
+    let input = "FIELD_1FIELD_2_FIELD_3-FIELD_1_A";
+    let expected = "ab_c-A";
+
+    let result = decode_obfuscated_text(input.to_string(), &mask_words);
+    assert_eq!(
+        result, expected,
+        "Adjacent field chains should decode without precomputed cartesian maps"
+    );
+}

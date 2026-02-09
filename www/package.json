@@ -13,7 +13,9 @@
     "wasm:watch": "cd .. && cargo watch -i .gitignore -i 'pkg/*' -i 'www/*' -s 'wasm-pack build'",
     "clean": "rm -rf dist/* && rm -rf ../pkg/*",
     "watch": "concurrently \"pnpm run wasm:watch\" \"webpack serve --config webpack.config.js\"",
-    "test": "pnpm run wasm:build && playwright test",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "test": "pnpm run wasm:build && pnpm run test:unit && pnpm run test:e2e",
     "test:debug": "playwright test --debug",
     "preview": "pnpm dlx serve dist --listen 8080 --cors"
   },
@@ -29,6 +31,8 @@
     "serve": "^14.2.4",
     "string-replace-loader": "^3.1.0",
     "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "jsdom": "^26.1.0",
     "webpack": "^5.99.6",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.2"

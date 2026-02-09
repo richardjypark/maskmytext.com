@@ -17,14 +17,17 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, "dist"),
     filename: "[name].js",
+    chunkFilename: "[name].js",
     publicPath: "./",
   },
   mode: process.env.NODE_ENV === "production" ? "production" : "development",
+  devtool: false,
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
         { from: "index.html" },
         { from: "manifest.json" },
+        { from: "styles", to: "styles" },
         { from: "icons", to: "icons" },
         { from: "../pkg", to: "pkg" },
       ],

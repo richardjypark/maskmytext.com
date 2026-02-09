@@ -1,36 +1,13 @@
 const { test, expect } = require("@playwright/test");
 
-test("should output the expected service worker messages", async ({ page }) => {
-  // Create an array to collect console messages
-  const consoleMessages = [];
-
-  // Listen for multiple console messages
-  page.on("console", (msg) => {
-    if (msg.type() === "log") {
-      consoleMessages.push(msg.text());
-    }
-  });
-
-  // Navigate to the page
+test("initializes the UI and keeps masking functional", async ({ page }) => {
   await page.goto("/");
 
-  // Wait a moment for all console messages to be processed
-  await page.waitForTimeout(1000);
+  await expect(page.locator("html")).toHaveClass(/js-loaded/);
 
-  // Expected messages from service worker registration
-  const expectedMessages = [
-    "Registering service worker...",
-    "Service worker registration successful",
-  ];
+  await page.fill("#input", "my secret value");
+  await page.fill("#mask-words-input", "secret");
+  await page.keyboard.press("Enter");
 
-  // Check if all expected messages were found
-  const allMessagesFound = expectedMessages.every((expected) =>
-    consoleMessages.some((msg) => msg.includes(expected))
-  );
-
-  // Output all collected messages for debugging
-  console.log("Collected console messages:", consoleMessages);
-
-  // Verify the service worker messages were output
-  expect(allMessagesFound).toBe(true);
+  await expect(page.locator("#output")).toContainText("my ****** value");
 });
