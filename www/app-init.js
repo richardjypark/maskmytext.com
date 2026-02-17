@@ -301,6 +301,8 @@ export function initApp() {
     registrationHandle?.applyUpdate();
   });
 
+  window.__maskMyTextInitDone = true;
+  document.getElementById("init-warning")?.classList.remove("show");
   document.documentElement.classList.remove("loading");
   document.documentElement.classList.add("js-loaded");
 

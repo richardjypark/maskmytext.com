@@ -21,6 +21,24 @@
       href="./icons/icon-192x192.png"
     />
     <link rel="apple-touch-icon" href="./icons/icon-192x192.png" />
+    <script>
+      window.__maskMyTextInitDone = false;
+
+      // Never leave core UI hidden if initialization stalls.
+      window.setTimeout(() => {
+        if (window.__maskMyTextInitDone) {
+          return;
+        }
+
+        document.documentElement.classList.remove("loading");
+        document.documentElement.classList.add("js-loaded");
+
+        const warning = document.getElementById("init-warning");
+        if (warning) {
+          warning.classList.add("show");
+        }
+      }, 2500);
+    </script>
     <link rel="stylesheet" href="./styles/main.css" />
   </head>
   <body>
@@ -28,6 +46,10 @@
       >This page contains webassembly and javascript content, please enable
       javascript in your browser.</noscript
     >
+    <div id="init-warning" class="init-warning" role="status">
+      Some app features did not initialize. Try a hard refresh to load the
+      latest version.
+    </div>
     <div class="container">
       <header>
         <div class="settings-container">

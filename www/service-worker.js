@@ -40,6 +40,16 @@ const CACHEABLE_EXTENSIONS = new Set([
   ".svg",
 ]);
 
+const CRITICAL_NETWORK_FIRST_PATHS = new Set([
+  "/",
+  "/index.html",
+  "/bootstrap.js",
+  "/app-init.js",
+  "/pkg/mask_my_text_bg.wasm",
+  "/pkg/mask_my_text.js",
+  "/pkg/mask_my_text_bg.js",
+]);
+
 async function cacheAssets(cache) {
   try {
     await cache.addAll(APP_SHELL_PATHS);
@@ -86,6 +96,19 @@ async function notifyClients() {
   );
 }
 
+function normalizePathname(pathname) {
+  if (!BASE_PATH) {
+    return pathname;
+  }
+  if (pathname === BASE_PATH) {
+    return "/";
+  }
+  if (pathname.startsWith(`${BASE_PATH}/`)) {
+    return pathname.slice(BASE_PATH.length);
+  }
+  return pathname;
+}
+
 function isCacheableRequest(request) {
   if (request.method !== "GET") {
     return false;
@@ -97,17 +120,31 @@ function isCacheableRequest(request) {
     return false;
   }
 
-  if (url.pathname.endsWith("/")) {
+  const normalizedPath = normalizePathname(url.pathname);
+  if (normalizedPath.endsWith("/")) {
     return true;
   }
 
   for (const extension of CACHEABLE_EXTENSIONS) {
-    if (url.pathname.endsWith(extension)) {
+    if (normalizedPath.endsWith(extension)) {
       return true;
     }
   }
 
   return false;
+}
+
+function isCriticalNetworkFirstRequest(request) {
+  if (request.method !== "GET") {
+    return false;
+  }
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+
+  return CRITICAL_NETWORK_FIRST_PATHS.has(normalizePathname(url.pathname));
 }
 
 async function pruneRuntimeCache(cache) {
@@ -119,6 +156,37 @@ async function pruneRuntimeCache(cache) {
   const excessEntries = requests.length - MAX_RUNTIME_ENTRIES;
   const toDelete = requests.slice(0, excessEntries);
   await Promise.all(toDelete.map((request) => cache.delete(request)));
+}
+
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request);
+    if (
+      response &&
+      response.status === 200 &&
+      response.type === "basic" &&
+      isCacheableRequest(request)
+    ) {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(request, response.clone());
+      await pruneRuntimeCache(cache);
+    }
+    return response;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    console.error("Network-first fetch failed:", error);
+    return new Response("Offline - Resource not available", {
+      status: 503,
+      statusText: "Service Unavailable",
+      headers: new Headers({
+        "Content-Type": "text/plain",
+      }),
+    });
+  }
 }
 
 self.addEventListener("install", (event) => {
@@ -150,6 +218,11 @@ self.addEventListener("fetch", (event) => {
         return caches.match("/");
       })
     );
+    return;
+  }
+
+  if (isCriticalNetworkFirstRequest(event.request)) {
+    event.respondWith(networkFirst(event.request));
     return;
   }
 
